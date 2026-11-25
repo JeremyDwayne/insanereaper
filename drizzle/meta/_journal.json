@@ -15,6 +15,13 @@
       "when": 1795626016181,
       "tag": "0001_kill_count",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1795641263510,
+      "tag": "0002_kill_count_boss",
+      "breakpoints": true
     }
   ]
 }

@@ -30,22 +30,38 @@ const Log = type({
   entries: LogEntry.array(),
 })
 
-/** One Combat Mastery achievement. `id` is the game's achievement id from the wiki row. */
+/**
+ * A boss as the game's combat achievement list names it: one per achievement subcategory, plus logs
+ * with no achievements. Bosses sharing a dungeon share its log. A log's only boss takes the log's id.
+ */
+const Boss = type({
+  id: 'string',
+  name: 'string',
+  logId: 'string',
+  page: 'string',
+  wikiImage: 'string',
+  image: 'string',
+})
+
+/** One Combat Mastery achievement, in the game's order. `id` is the game's achievement id from the wiki row. */
 const Task = type({
   id: 'string',
   name: 'string',
   description: 'string',
   subcategory: 'string',
+  bossId: 'string',
   logId: 'string',
   tier: Tier,
   points: 'number.integer',
   members: 'boolean',
 })
 
-export const Catalogue = type({ logs: Log.array(), items: Item.array(), tasks: Task.array() })
+/** `bosses` are in the game's combat achievement list order; `logs` in its drop log order. */
+export const Catalogue = type({ logs: Log.array(), bosses: Boss.array(), items: Item.array(), tasks: Task.array() })
 
 export type Tier = typeof Tier.infer
 export type Item = typeof Item.infer
 export type Log = typeof Log.infer
+export type Boss = typeof Boss.infer
 export type Task = typeof Task.infer
 export type Catalogue = typeof Catalogue.infer

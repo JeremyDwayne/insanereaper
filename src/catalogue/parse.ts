@@ -1,6 +1,6 @@
 import { type HTMLElement, parse } from 'node-html-parser'
-import { Catalogue, type Item, type Log, type Task } from './schema.ts'
-import { SUBCATEGORY_LOGS } from './subcategories.ts'
+import { type Boss, Catalogue, type Item, type Log, type Task } from './schema.ts'
+import { BOSS_PAGES, GROUP_PREFIXES, SUBCATEGORY_LOGS } from './subcategories.ts'
 
 // Parsers for the RuneScape Wiki's rendered pages. Used by scripts/catalogue.ts and its tests only.
 
@@ -13,7 +13,7 @@ export type RawLog = {
 }
 
 /** A task row before validation; `tier` is checked when the catalogue is built. */
-export type RawTask = Omit<Task, 'logId' | 'tier'> & { tier: string }
+export type RawTask = Omit<Task, 'bossId' | 'logId' | 'tier'> & { tier: string }
 
 /** Lower-case, accent-free, hyphenated id: "Kree'arra" becomes "kreearra". */
 export function slug(name: string): string {
@@ -75,12 +75,13 @@ export function parsePets(html: string): Set<string> {
   return new Set(names)
 }
 
-/** Combat Mastery achievements page: the task list is the largest wikitable. */
+/** The rendered Combat Mastery achievements list, in game order: the task list is the largest wikitable. */
 export function parseTasks(html: string): RawTask[] {
   const tables = parse(html).querySelectorAll('table.wikitable')
   const table = tables.reduce((a, b) => (b.querySelectorAll('tr').length > a.querySelectorAll('tr').length ? b : a))
   return table.querySelectorAll('tr[data-rowid]').map((tr) => {
-    const td = tr.querySelectorAll('td')
+    // The first cell is the game's sequence number, which the row order already carries.
+    const td = tr.querySelectorAll('td').slice(1)
     return {
       id: tr.getAttribute('data-rowid') ?? '',
       name: cellText(td[0]),
@@ -130,16 +131,62 @@ export function buildCatalogue(input: CatalogueInput): Catalogue {
     }),
   }))
 
-  const logIds = new Set(logs.map((log) => log.id))
+  const logsById = new Map(logs.map((log) => [log.id, log]))
   const unmapped = new Set<string>()
-  const tasks = input.tasks.map((task) => {
+  const subcategoryLogs = new Map<string, string>()
+  for (const task of input.tasks) {
     const logId = SUBCATEGORY_LOGS[task.subcategory] ?? slug(task.subcategory)
-    if (!logIds.has(logId)) unmapped.add(task.subcategory)
-    return { ...task, logId }
-  })
+    if (logsById.has(logId)) subcategoryLogs.set(task.subcategory, logId)
+    else unmapped.add(task.subcategory)
+  }
   if (unmapped.size) throw new Error(`Subcategories with no boss log: ${[...unmapped].join(', ')}`)
 
-  return Catalogue.assert({ logs, items: [...items.values()], tasks })
+  const shared = new Set([...subcategoryLogs.values()].filter((id, i, all) => all.indexOf(id) !== i))
+  const bossOf = new Map<string, Boss>()
+  for (const [subcategory, logId] of subcategoryLogs) {
+    const log = logsById.get(logId)
+    if (!log) continue
+    const own = shared.has(logId) && !GROUP_PREFIXES.some((p) => subcategory.startsWith(p))
+    const page = own ? (BOSS_PAGES[subcategory] ?? subcategory) : log.page
+    bossOf.set(subcategory, {
+      id: shared.has(logId) ? slug(subcategory) : logId,
+      name: subcategory,
+      logId,
+      page,
+      wikiImage: own ? (input.pageImages.get(page) ?? '') : log.wikiImage,
+      image: '',
+    })
+  }
+  const withTasks = new Set(subcategoryLogs.values())
+  const bosses = [
+    ...bossOf.values(),
+    ...logs
+      .filter((log) => !withTasks.has(log.id))
+      .map((log) => ({
+        id: log.id,
+        name: log.name,
+        logId: log.id,
+        page: log.page,
+        wikiImage: log.wikiImage,
+        image: '',
+      })),
+  ].sort(gameOrder)
+  const tasks = input.tasks.map((task) => {
+    const boss = bossOf.get(task.subcategory)
+    return { ...task, bossId: boss?.id ?? '', logId: boss?.logId ?? '' }
+  })
+
+  return Catalogue.assert({ logs, bosses, items: [...items.values()], tasks })
+}
+
+/**
+ * The game's combat achievement list order: boss names alphabetically, ignoring a leading "The" and
+ * apostrophes, then the dungeon and raid groups in GROUP_PREFIXES order.
+ */
+export function gameOrder(a: { name: string }, b: { name: string }): number {
+  const rank = (name: string) => GROUP_PREFIXES.findIndex((p) => name.startsWith(p))
+  const key = (name: string) => name.replace(/^The /, '').replace(/['’]/g, '')
+  return rank(a.name) - rank(b.name) || key(a.name).localeCompare(key(b.name), 'en')
 }
 
 /** Wiki redirect titles worth searching by: no "drops" or guide pages, no repeats of the name. */

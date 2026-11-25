@@ -5,11 +5,10 @@ import { type Progress, summarize } from '#/progress/summary.ts'
 const bold = (value: string) => ({ value, fontWeight: 'bold' as const })
 const header = (...labels: string[]): Row => labels.map(bold)
 
-/** A character's progress as three sheets: Summary, Drops (one row per log entry) and Achievements. */
+/** A character's progress as three sheets: Summary, Drops (one row per log entry) and Achievements in game order. */
 export function workbook(catalogue: Catalogue, progress: Progress, name: string): Sheet<Blob>[] {
   const s = summarize(catalogue, progress)
   const items = new Map(catalogue.items.map((i) => [i.id, i]))
-  const logs = new Map(catalogue.logs.map((l) => [l.id, l]))
   const exported = new Date().toISOString().slice(0, 10)
 
   const summary: Row[] = [
@@ -20,14 +19,16 @@ export function workbook(catalogue: Catalogue, progress: Progress, name: string)
     [bold('Drops obtained'), s.drops.got],
     [bold('Drops total'), s.drops.total],
     [bold('Logs complete'), s.logsComplete],
-    [bold('Logs total'), s.logs.length],
+    [bold('Logs total'), catalogue.logs.length],
+    [bold('Achievements done'), s.tasksDone],
+    [bold('Achievements total'), catalogue.tasks.length],
     [],
     header('Tier', 'Done', 'Total', 'Points left'),
     ...s.tiers.map((t): Row => [t.tier, t.done, t.total, t.pointsLeft]),
   ]
 
   const drops: Row[] = [
-    header('Boss', 'Item', 'Rarity', 'Pet', 'Count', 'Obtained'),
+    header('Log', 'Item', 'Rarity', 'Pet', 'Count', 'Obtained'),
     ...catalogue.logs.flatMap((log) =>
       log.entries.map((e): Row => {
         const count = progress.items[e.itemId] ?? 0
@@ -45,16 +46,20 @@ export function workbook(catalogue: Catalogue, progress: Progress, name: string)
 
   const tasks: Row[] = [
     header('Boss', 'Achievement', 'Description', 'Tier', 'Points', 'Members', 'Done'),
-    ...catalogue.tasks.map(
-      (t): Row => [
-        logs.get(t.logId)?.name,
-        t.name,
-        t.description,
-        t.tier,
-        t.points,
-        t.members ? 'Yes' : 'No',
-        progress.tasks.has(t.id) ? 'Yes' : 'No',
-      ],
+    ...catalogue.bosses.flatMap((boss) =>
+      catalogue.tasks
+        .filter((t) => t.bossId === boss.id)
+        .map(
+          (t): Row => [
+            boss.name,
+            t.name,
+            t.description,
+            t.tier,
+            t.points,
+            t.members ? 'Yes' : 'No',
+            progress.tasks.has(t.id) ? 'Yes' : 'No',
+          ],
+        ),
     ),
   ]
 

@@ -68,7 +68,7 @@ export const getCharacter = createServerFn()
       signedIn: !!user,
       items: Object.fromEntries(items.map((i) => [i.itemId, i.count])),
       tasks: tasks.map((t) => t.taskId),
-      /** Keyed by `${logId}:${kind}`. */
-      kills: Object.fromEntries(kills.map((k) => [`${k.logId}:${k.kind}`, k.value])),
+      /** Keyed by `${bossId}:${kind}`. */
+      kills: Object.fromEntries(kills.map((k) => [`${k.bossId}:${k.kind}`, k.value])),
     }
   })

@@ -3,7 +3,7 @@ import { setResponseStatus } from '@tanstack/react-start/server'
 import { type } from 'arktype'
 import { and, eq } from 'drizzle-orm'
 import { currentUser } from '#/auth/user.server.ts'
-import { itemsById, logsById, tasksById } from '#/catalogue/index.ts'
+import { bossesById, itemsById, tasksById } from '#/catalogue/index.ts'
 import { db } from '#/db/client.ts'
 import { character, itemProgress, killCount, taskProgress } from '#/db/schema.ts'
 import { KILL_KINDS } from '#/progress/kills.ts'
@@ -49,18 +49,18 @@ export const setKillCount = createServerFn({ method: 'POST' })
   .validator(
     type({
       characterId: 'string',
-      logId: 'string',
+      bossId: 'string',
       kind: type.enumerated(...KILL_KINDS),
       value: '0 <= number.integer <= 100000000',
     }),
   )
   .handler(async ({ data }) => {
-    if (!logsById.has(data.logId) || !(await ownsCharacter(data.characterId))) return { ok: false }
+    if (!bossesById.has(data.bossId) || !(await ownsCharacter(data.characterId))) return { ok: false }
     await db
       .insert(killCount)
       .values(data)
       .onConflictDoUpdate({
-        target: [killCount.characterId, killCount.logId, killCount.kind],
+        target: [killCount.characterId, killCount.bossId, killCount.kind],
         set: { value: data.value },
       })
     return { ok: true }

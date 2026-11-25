@@ -1,30 +1,32 @@
 import { useNavigate } from '@tanstack/react-router'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { imageUrl } from '#/catalogue/images.ts'
-import { catalogue, itemsById, logsById, tasksById } from '#/catalogue/index.ts'
-import type { LogSummary, Progress } from '#/progress/summary.ts'
+import { bossesById, catalogue, itemsById, tasksById } from '#/catalogue/index.ts'
+import type { BossSummary, Progress } from '#/progress/summary.ts'
 import { createSearch, type SearchHit } from '#/search/search.ts'
 import { SearchIcon } from './icons.tsx'
 import { Mark } from './Mark.tsx'
 
 const search = createSearch(catalogue)
 
-/** The first log that lists each item; shared items open there. */
-const itemLog = new Map<string, string>()
-for (const log of catalogue.logs) for (const e of log.entries) if (!itemLog.has(e.itemId)) itemLog.set(e.itemId, log.id)
+/** The first boss whose log lists each item; shared items open there. */
+const itemBoss = new Map<string, string>()
+for (const boss of catalogue.bosses)
+  for (const e of catalogue.logs.find((log) => log.id === boss.logId)?.entries ?? [])
+    if (!itemBoss.has(e.itemId)) itemBoss.set(e.itemId, boss.id)
 
-const logOf = (hit: SearchHit) =>
-  hit.kind === 'log' ? hit.id : hit.kind === 'item' ? itemLog.get(hit.id) : tasksById.get(hit.id)?.logId
+const bossOf = (hit: SearchHit) =>
+  hit.kind === 'boss' ? hit.id : hit.kind === 'item' ? itemBoss.get(hit.id) : tasksById.get(hit.id)?.bossId
 
-/** Fuzzy search over bosses, drops and achievements. Picking a hit opens its boss log on this profile. */
-export function Search({ slug, logs, progress }: { slug: string; logs: LogSummary[]; progress: Progress }) {
+/** Fuzzy search over bosses, drops and achievements. Picking a hit opens its boss on this profile. */
+export function Search({ slug, bosses, progress }: { slug: string; bosses: BossSummary[]; progress: Progress }) {
   const navigate = useNavigate()
   const input = useRef<HTMLInputElement>(null)
   const [query, setQuery] = useState('')
   const [active, setActive] = useState(0)
   const results = useMemo(() => search(query, 5), [query])
-  const hits = [...results.logs, ...results.items, ...results.tasks]
-  const summaries = useMemo(() => new Map(logs.map((s) => [s.log.id, s])), [logs])
+  const hits = [...results.bosses, ...results.items, ...results.tasks]
+  const summaries = useMemo(() => new Map(bosses.map((s) => [s.boss.id, s])), [bosses])
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -37,7 +39,7 @@ export function Search({ slug, logs, progress }: { slug: string; logs: LogSummar
   }, [])
 
   const open = (hit: SearchHit | undefined) => {
-    const boss = hit && logOf(hit)
+    const boss = hit && bossOf(hit)
     if (!boss) return
     setQuery('')
     input.current?.blur()
@@ -107,14 +109,14 @@ export function Search({ slug, logs, progress }: { slug: string; logs: LogSummar
           aria-label="Search results"
           className="absolute top-12 right-0 left-0 z-10 rounded border border-line2 bg-surface py-1.5 shadow-[0_12px_32px_rgba(0,0,0,.35)]"
         >
-          {results.logs.length > 0 && heading('Bosses')}
-          {results.logs.map((hit) => {
+          {results.bosses.length > 0 && heading('Bosses')}
+          {results.bosses.map((hit) => {
             const s = summaries.get(hit.id)
-            const log = logsById.get(hit.id)
+            const boss = bossesById.get(hit.id)
             return row(
               hit,
               <>
-                {log && <img src={imageUrl(log)} alt="" className="size-9 object-contain" />}
+                {boss && <img src={imageUrl(boss)} alt="" className="size-9 object-contain" />}
                 <span className="flex-auto">
                   <strong>{hit.name}</strong>
                   {hit.alias && <span className="block text-muted text-xs">Nickname match: {hit.alias}</span>}

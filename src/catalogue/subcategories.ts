@@ -35,3 +35,9 @@ export const SUBCATEGORY_LOGS: Record<string, string> = {
 export const LOG_PAGES: Record<string, string> = {
   'Fight Kiln': 'TzTok-Jad',
 }
+
+/** Achievement groups the game lists after every boss, in its order. They draw on their log's page and drops. */
+export const GROUP_PREFIXES = ['Elite Dungeon: ', 'Boss Dungeon: ', 'Raid: ']
+
+/** Split bosses whose subcategory name is not their wiki page. */
+export const BOSS_PAGES: Record<string, string> = {}
