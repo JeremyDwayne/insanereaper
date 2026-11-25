@@ -13,7 +13,8 @@ export function Header({
 }) {
   return (
     <header className="flex flex-wrap items-center gap-4 border-line border-b px-4 py-2.5 sm:px-8">
-      <Link to="/" className="font-extrabold text-base text-gold-text no-underline">
+      <Link to="/" className="inline-flex items-center gap-2 font-extrabold text-base text-gold-text no-underline">
+        <img src="/favicon.svg" alt="" width={24} height={24} />
         Insane Reaper
       </Link>
       {children}
