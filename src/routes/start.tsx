@@ -1,6 +1,7 @@
+import { useQueryClient } from '@tanstack/react-query'
 import { createFileRoute, redirect, useNavigate, useRouter } from '@tanstack/react-router'
 import { type } from 'arktype'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { authClient, SIGNED_IN } from '#/auth/client.ts'
 import { CharacterName } from '#/characters/name.ts'
 import { Header } from '#/components/Header.tsx'
@@ -44,17 +45,24 @@ function Start() {
  */
 function SignInForm() {
   const router = useRouter()
+  const queryClient = useQueryClient()
   const [email, setEmail] = useState('')
   const [sent, setSent] = useState('')
   const [code, setCode] = useState('')
   const [error, setError] = useState('')
 
+  // Profiles cached while signed out say the account owns nothing, so drop them before moving on.
+  const signedIn = useCallback(() => {
+    queryClient.clear()
+    router.invalidate()
+  }, [queryClient, router])
+
   useEffect(() => {
     if (!sent) return
     const channel = new BroadcastChannel(SIGNED_IN)
-    channel.onmessage = () => router.invalidate()
+    channel.onmessage = signedIn
     return () => channel.close()
-  }, [sent, router])
+  }, [sent, signedIn])
 
   return (
     <div className={`${panel} border-line`}>
@@ -92,7 +100,7 @@ function SignInForm() {
             setError('')
             const { error } = await authClient.signIn.emailOtp({ email: sent, otp: code.trim() })
             if (error) setError('That code did not work. Check it, or send a new one.')
-            else router.invalidate()
+            else signedIn()
           }}
         >
           <p
