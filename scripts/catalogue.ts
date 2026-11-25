@@ -1,10 +1,20 @@
-// Rebuilds src/catalogue/catalogue.json from the RuneScape Wiki. Run with `pnpm catalogue`.
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+// Rebuilds src/catalogue/catalogue.json from the RuneScape Wiki and copies new images to R2.
+// Run with `pnpm catalogue` after `wrangler login`.
+import { execFile } from 'node:child_process'
+import { createHash } from 'node:crypto'
+import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { promisify } from 'node:util'
 import { buildCatalogue, cleanAliases, parseLogs, parsePets, parseTasks } from '../src/catalogue/parse.ts'
 import { Catalogue, TIERS } from '../src/catalogue/schema.ts'
 import { LOG_PAGES } from '../src/catalogue/subcategories.ts'
 
-const API = 'https://runescape.wiki/api.php'
+const WIKI = 'https://runescape.wiki'
+const API = `${WIKI}/api.php`
+const BUCKET = 'insanereaper-images'
+const run = promisify(execFile)
+const WRANGLER = new URL('../node_modules/.bin/wrangler', import.meta.url).pathname
 const USER_AGENT = 'insanereaper.com catalogue build (https://github.com/JeremyDwayne/insanereaper)'
 const OUT = new URL('../src/catalogue/catalogue.json', import.meta.url)
 
@@ -119,8 +129,49 @@ if (noImage.length) throw new Error(`Logs with no boss image, add them to LOG_PA
 const petIds = new Set(catalogue.items.filter((item) => item.pet).map((item) => item.id))
 const noPet = catalogue.logs.filter((log) => !log.entries.some((e) => petIds.has(e.itemId))).map((log) => log.name)
 
-if (existsSync(OUT)) {
-  const previous = Catalogue.assert(JSON.parse(readFileSync(OUT, 'utf8')))
+/**
+ * Gives every log and item an R2 image key named by content hash, so the image can be cached forever.
+ * Reuses the previous key when the wiki image URL, which carries the wiki's own file hash, is unchanged.
+ */
+async function syncImages(next: Catalogue, previous: Catalogue | null) {
+  const known = new Map([...(previous?.logs ?? []), ...(previous?.items ?? [])].map((x) => [x.wikiImage, x.image]))
+  const entries = [...next.logs, ...next.items]
+  const todo = [...new Set(entries.map((x) => x.wikiImage).filter((src) => !known.get(src)))]
+  const dir = mkdtempSync(join(tmpdir(), 'insanereaper-'))
+  let uploaded = 0
+  const upload = async (src: string) => {
+    const res = await fetch(WIKI + src, { headers: { 'User-Agent': USER_AGENT } })
+    if (!res.ok) throw new Error(`${res.status} ${src}`)
+    const bytes = Buffer.from(await res.arrayBuffer())
+    const type = res.headers.get('content-type') ?? 'image/png'
+    const key = `${createHash('sha256').update(bytes).digest('hex').slice(0, 20)}.${type.split('/')[1] ?? 'png'}`
+    const file = join(dir, key)
+    writeFileSync(file, bytes)
+    await run(WRANGLER, [
+      'r2',
+      'object',
+      'put',
+      `${BUCKET}/${key}`,
+      '--remote',
+      '--file',
+      file,
+      '--content-type',
+      type,
+      '--cache-control',
+      'public, max-age=31536000, immutable',
+    ])
+    known.set(src, key)
+    uploaded++
+  }
+  for (let i = 0; i < todo.length; i += 8) await Promise.all(todo.slice(i, i + 8).map(upload))
+  for (const x of entries) x.image = known.get(x.wikiImage) ?? ''
+  console.log(`${uploaded} new images uploaded to R2`)
+}
+
+const previous = existsSync(OUT) ? Catalogue.assert(JSON.parse(readFileSync(OUT, 'utf8'))) : null
+await syncImages(catalogue, previous)
+
+if (previous) {
   const ids = (c: Catalogue) => new Set([...c.logs, ...c.items, ...c.tasks].map((x) => x.id))
   const next = ids(catalogue)
   const removed = [...ids(previous)].filter((id) => !next.has(id))
