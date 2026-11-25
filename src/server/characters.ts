@@ -1,17 +1,10 @@
 import { createServerFn } from '@tanstack/react-start'
-import { getRequestHeaders } from '@tanstack/react-start/server'
 import { type } from 'arktype'
 import { eq } from 'drizzle-orm'
-import { auth } from '#/auth/server.ts'
+import { currentUser } from '#/auth/user.server.ts'
 import { CharacterName, nameKey, nameSlug } from '#/characters/name.ts'
 import { db } from '#/db/client.ts'
 import { character, itemProgress, taskProgress } from '#/db/schema.ts'
-
-/** The signed-in user, or null. Server only. */
-export async function currentUser() {
-  const session = await auth.api.getSession({ headers: getRequestHeaders() })
-  return session?.user ?? null
-}
 
 /** The signed-in account and its characters, or null when signed out. */
 export const getMe = createServerFn().handler(async () => {
@@ -41,6 +34,17 @@ export const claimCharacter = createServerFn({ method: 'POST' })
     return { ok: true, slug: nameSlug(data.name) }
   })
 
+/** True when no account has claimed a name with the same key. */
+export const checkName = createServerFn()
+  .validator(type({ name: CharacterName }))
+  .handler(async ({ data }) => {
+    const [row] = await db
+      .select({ id: character.id })
+      .from(character)
+      .where(eq(character.nameKey, nameKey(data.name)))
+    return !row
+  })
+
 /** A character's public profile and progress, by profile slug. `owned` is true for its account. */
 export const getCharacter = createServerFn()
   .validator(type({ slug: 'string' }))
@@ -60,6 +64,7 @@ export const getCharacter = createServerFn()
       name: row.name,
       slug: nameSlug(row.name),
       owned: user?.id === row.userId,
+      signedIn: !!user,
       items: Object.fromEntries(items.map((i) => [i.itemId, i.count])),
       tasks: tasks.map((t) => t.taskId),
     }

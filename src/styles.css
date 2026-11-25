@@ -13,6 +13,7 @@
   --color-gold: var(--gold);
   --color-gold-text: var(--gold-text);
   --color-track: var(--track);
+  --color-on-gold: #111418;
 }
 
 /* Theme tokens; the root element carries `dark` or `light`. */
@@ -44,10 +45,16 @@
   color-scheme: light;
 }
 
-body {
-  margin: 0;
-  background: var(--bg);
-  color: var(--text);
-  font-family: var(--font-sans);
-  font-size: 14px;
+@layer base {
+  a {
+    color: var(--gold-text);
+  }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-sans);
+    font-size: 14px;
+  }
 }

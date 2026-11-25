@@ -1,11 +1,10 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, redirect } from '@tanstack/react-router'
+import { getMe } from '#/server/characters.ts'
 
-export const Route = createFileRoute('/')({ component: Home })
-
-function Home() {
-  return (
-    <main className="mx-auto max-w-5xl p-8">
-      <h1 className="text-3xl font-extrabold text-gold">Insane Reaper</h1>
-    </main>
-  )
-}
+/** Home sends you to your first character, or to sign in and claim one. */
+export const Route = createFileRoute('/')({
+  loader: async () => {
+    const [first] = (await getMe())?.characters ?? []
+    throw first ? redirect({ to: '/$character', params: { character: first.slug } }) : redirect({ to: '/start' })
+  },
+})

@@ -2,10 +2,10 @@ import { createServerFn } from '@tanstack/react-start'
 import { setResponseStatus } from '@tanstack/react-start/server'
 import { type } from 'arktype'
 import { and, eq } from 'drizzle-orm'
+import { currentUser } from '#/auth/user.server.ts'
 import { itemsById, tasksById } from '#/catalogue/index.ts'
 import { db } from '#/db/client.ts'
 import { character, itemProgress, taskProgress } from '#/db/schema.ts'
-import { currentUser } from './characters.ts'
 
 /** True when the signed-in account owns the character; sets 403 otherwise. */
 async function ownsCharacter(characterId: string): Promise<boolean> {

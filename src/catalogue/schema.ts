@@ -11,7 +11,7 @@ const Item = type({
   pet: 'boolean',
   /** Wiki image path including its version query, used to skip unchanged images on sync. */
   wikiImage: 'string',
-  /** Our image URL, empty until the image sync has run. */
+  /** R2 key named by content hash, empty until the image sync has run. */
   image: 'string',
   aliases: 'string[]',
 })
