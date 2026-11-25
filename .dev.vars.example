@@ -2,3 +2,5 @@
 BETTER_AUTH_SECRET=generate-with-openssl-rand-hex-32
 BETTER_AUTH_URL=http://localhost:3000
 POSTMARK_TOKEN=
+# Cloudflare's Turnstile test secret, which accepts the token from the test site key the dev build uses.
+TURNSTILE_SECRET_KEY=1x0000000000000000000000000000000AA

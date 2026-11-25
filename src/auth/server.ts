@@ -1,7 +1,7 @@
 import { env } from 'cloudflare:workers'
 import { betterAuth } from 'better-auth'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
-import { emailOTP } from 'better-auth/plugins'
+import { captcha, emailOTP } from 'better-auth/plugins'
 import { tanstackStartCookies } from 'better-auth/tanstack-start'
 import { db } from '#/db/client.ts'
 import * as schema from '#/db/schema.ts'
@@ -18,6 +18,12 @@ export const auth = betterAuth({
       expiresIn: SIGN_IN_SECONDS,
       storeOTP: 'hashed',
       sendVerificationOTP: ({ email, otp }) => sendSignInEmail(email, otp),
+    }),
+    // Asking for a sign-in code needs a Turnstile token, so a bot cannot make the site send email.
+    captcha({
+      provider: 'cloudflare-turnstile',
+      secretKey: env.TURNSTILE_SECRET_KEY,
+      endpoints: ['/email-otp/send-verification-otp'],
     }),
     tanstackStartCookies(),
   ],
