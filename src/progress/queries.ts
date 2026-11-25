@@ -12,11 +12,11 @@ export type CharacterData = NonNullable<Awaited<ReturnType<typeof getCharacter>>
 export type Edit =
   | { itemId: string; count: number }
   | { taskId: string; done: boolean }
-  | { logId: string; kind: KillKind; value: number }
+  | { bossId: string; kind: KillKind; value: number }
 
 function apply(c: CharacterData, edit: Edit): CharacterData {
   if ('itemId' in edit) return { ...c, items: { ...c.items, [edit.itemId]: edit.count } }
-  if ('logId' in edit) return { ...c, kills: { ...c.kills, [`${edit.logId}:${edit.kind}`]: edit.value } }
+  if ('bossId' in edit) return { ...c, kills: { ...c.kills, [`${edit.bossId}:${edit.kind}`]: edit.value } }
   const tasks = c.tasks.filter((id) => id !== edit.taskId)
   return { ...c, tasks: edit.done ? [...tasks, edit.taskId] : tasks }
 }
@@ -34,7 +34,7 @@ export function useEdit(slug: string) {
       const result =
         'itemId' in data
           ? await setItemCount({ data })
-          : 'logId' in data
+          : 'bossId' in data
             ? await setKillCount({ data })
             : await setTaskDone({ data })
       if (!result.ok) throw new Error('Not saved')
@@ -45,8 +45,8 @@ export function useEdit(slug: string) {
       const undo: Edit =
         'itemId' in edit
           ? { ...edit, count: c.items[edit.itemId] ?? 0 }
-          : 'logId' in edit
-            ? { ...edit, value: c.kills[`${edit.logId}:${edit.kind}`] ?? 0 }
+          : 'bossId' in edit
+            ? { ...edit, value: c.kills[`${edit.bossId}:${edit.kind}`] ?? 0 }
             : { ...edit, done: !edit.done }
       queryClient.setQueryData(queryKey, apply(c, edit))
       return { undo }

@@ -8,6 +8,7 @@ describe('killKinds', () => {
     expect(kinds.get('nex-angel-of-death')).toEqual(['normal'])
     expect(kinds.get('kreearra')).toEqual(['normal', 'hard'])
     expect(kinds.get('telos')).toEqual(['normal', 'enrage'])
+    expect(kinds.get('seiryu')).toEqual(['normal'])
   })
 })
 

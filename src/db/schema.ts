@@ -46,16 +46,16 @@ export const taskProgress = sqliteTable(
   (t) => [primaryKey({ columns: [t.characterId, t.taskId] })],
 )
 
-/** Kill counts typed in by the player, per boss log and kind (see KILL_KINDS). */
+/** Kill counts typed in by the player, per catalogue boss and kind (see KILL_KINDS). */
 export const killCount = sqliteTable(
   'kill_count',
   {
     characterId: text('character_id')
       .notNull()
       .references(() => character.id, { onDelete: 'cascade' }),
-    logId: text('log_id').notNull(),
+    bossId: text('boss_id').notNull(),
     kind: text('kind', { enum: KILL_KINDS }).notNull(),
     value: integer('value').notNull(),
   },
-  (t) => [primaryKey({ columns: [t.characterId, t.logId, t.kind] })],
+  (t) => [primaryKey({ columns: [t.characterId, t.bossId, t.kind] })],
 )

@@ -4,20 +4,22 @@ import { type } from 'arktype'
 import { Fragment, useEffect, useMemo, useState } from 'react'
 import { imageUrl } from '#/catalogue/images.ts'
 import { catalogue } from '#/catalogue/index.ts'
+import { BossPanel } from '#/components/BossPanel.tsx'
 import { Header, HeaderButton } from '#/components/Header.tsx'
 import { DownloadIcon, LinkIcon } from '#/components/icons.tsx'
-import { LogPanel } from '#/components/LogPanel.tsx'
+import { Meter } from '#/components/Meter.tsx'
 import { Search } from '#/components/Search.tsx'
 import { downloadXlsx } from '#/export/xlsx.ts'
 import { characterQuery, useEdit } from '#/progress/queries.ts'
-import { type LogSummary, summarize } from '#/progress/summary.ts'
+import { type BossSummary, summarize } from '#/progress/summary.ts'
 
 const ProfileSearch = type({
   'boss?': 'string',
   /** Also list logs with nothing left. */
   'all?': 'boolean',
   'show?': "'drops' | 'tasks'",
-  'sort?': "'points' | 'name'",
+  /** Row order; the game's combat achievement list when absent. */
+  'sort?': "'log' | 'closest' | 'points'",
 })
 
 export const Route = createFileRoute('/$character')({
@@ -45,17 +47,21 @@ const SHOW_OPTIONS = [
 ] as const
 
 const SORT_OPTIONS = [
-  { value: undefined, label: 'Closest to done' },
+  { value: undefined, label: 'Achievements' },
+  { value: 'log', label: 'Drop log' },
+  { value: 'closest', label: 'Closest to done' },
   { value: 'points', label: 'Most points left' },
-  { value: 'name', label: 'A to Z' },
 ] as const
 
-const COLUMNS = 'grid grid-cols-[44px_minmax(0,2fr)_minmax(0,1fr)_84px_110px_84px] items-center gap-3.5'
+const COLUMNS = 'grid grid-cols-[44px_minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_84px] items-center gap-3.5'
 
+const logOrder = new Map(catalogue.logs.map((log, i) => [log.id, i]))
+
+/** Row orders other than the default, which keeps the catalogue's game achievement order. */
 const sorts = {
-  closest: (a: LogSummary, b: LogSummary) => b.got / b.total - a.got / a.total || a.tasksLeft - b.tasksLeft,
-  points: (a: LogSummary, b: LogSummary) => b.pointsLeft - a.pointsLeft,
-  name: (a: LogSummary, b: LogSummary) => a.log.name.localeCompare(b.log.name),
+  log: (a: BossSummary, b: BossSummary) => (logOrder.get(a.log.id) ?? 0) - (logOrder.get(b.log.id) ?? 0),
+  closest: (a: BossSummary, b: BossSummary) => b.got / b.total - a.got / a.total || a.tasksLeft - b.tasksLeft,
+  points: (a: BossSummary, b: BossSummary) => b.pointsLeft - a.pointsLeft,
 }
 
 function Profile() {
@@ -68,14 +74,14 @@ function Profile() {
   const summary = useMemo(() => summarize(catalogue, progress), [progress])
 
   useEffect(() => {
-    if (boss) document.getElementById(`log-${boss}`)?.scrollIntoView({ block: 'nearest' })
+    if (boss) document.getElementById(`boss-${boss}`)?.scrollIntoView({ block: 'nearest' })
   }, [boss])
 
   if (!data) return null
-  const left = (s: LogSummary) => (show === 'drops' ? !s.complete : show === 'tasks' ? s.tasksLeft > 0 : !s.done)
-  const rows = summary.logs.filter((s) => all || left(s) || s.log.id === boss).sort(sorts[sort ?? 'closest'])
+  const left = (s: BossSummary) => (show === 'drops' ? !s.complete : show === 'tasks' ? s.tasksLeft > 0 : !s.done)
+  const shown = summary.bosses.filter((s) => all || left(s) || s.boss.id === boss)
+  const rows = sort ? shown.sort(sorts[sort]) : shown
   const dropsLeft = summary.drops.total - summary.drops.got
-  const tasksLeft = catalogue.tasks.length - progress.tasks.size
   const setSearch = (next: Partial<typeof ProfileSearch.infer>) =>
     navigate({ search: (s) => ({ ...s, ...next }), resetScroll: false, replace: true })
 
@@ -93,7 +99,7 @@ function Profile() {
           </>
         }
       >
-        <Search slug={data.slug} logs={summary.logs} progress={progress} />
+        <Search slug={data.slug} bosses={summary.bosses} progress={progress} />
       </Header>
       <main className="mx-auto flex max-w-[1240px] flex-col gap-5.5 px-4 py-6 sm:px-8">
         <section className="flex flex-col gap-2.5">
@@ -106,11 +112,14 @@ function Profile() {
               {summary.insaneReaper ? 'The Insane Reaper' : `${dropsLeft.toLocaleString()} drops to the Reaper`}
             </h1>
             <span className="text-muted">
-              {summary.drops.got} of {summary.drops.total} drops, {summary.logsComplete} of {summary.logs.length} logs
+              {summary.drops.got} of {summary.drops.total} drops, {summary.logsComplete} of {catalogue.logs.length} logs
             </span>
           </div>
-          <div className="h-2.5 bg-track">
-            <div className="h-2.5 bg-gold" style={{ width: `${(summary.drops.got / summary.drops.total) * 100}%` }} />
+          <div className="grid grid-cols-[110px_1fr] items-center gap-x-3 gap-y-1.5 text-[13px]">
+            <span className="text-muted">Drops</span>
+            <Meter got={summary.drops.got} total={summary.drops.total} kind="drops" height="h-2.5" />
+            <span className="text-muted">Achievements</span>
+            <Meter got={summary.tasksDone} total={catalogue.tasks.length} kind="tasks" height="h-2.5" />
           </div>
           <div className="mt-1 flex flex-wrap gap-8 text-muted">
             <span>
@@ -122,9 +131,6 @@ function Profile() {
                 {summary.blessing ? `War's Blessing ${summary.blessing}` : "No War's Blessing yet"}
               </strong>
               {summary.toNextBlessing !== null && `, ${summary.toNextBlessing} points to ${summary.blessing + 1}`}
-            </span>
-            <span>
-              <strong className="text-text">{tasksLeft}</strong> achievements left
             </span>
           </div>
         </section>
@@ -154,7 +160,7 @@ function Profile() {
             </select>
           </label>
           <label className="flex items-center gap-2 font-semibold">
-            Sort
+            Order
             <select
               value={sort ?? ''}
               className="rounded border border-line2 bg-surface px-2.5 py-2"
@@ -174,40 +180,38 @@ function Profile() {
             <span />
             <span>Boss</span>
             <span>Drops</span>
-            <span className="text-right">Drops left</span>
-            <span className="text-right">Achievements left</span>
+            <span>Achievements</span>
             <span className="text-right">Points left</span>
           </div>
           {rows.map((s) => {
-            const open = s.log.id === boss
+            const open = s.boss.id === boss
             const line = (
               <Link
-                key={s.log.id}
+                key={s.boss.id}
                 to="/$character"
                 params={{ character: data.slug }}
-                search={(prev) => ({ ...prev, boss: open ? undefined : s.log.id })}
+                search={(prev) => ({ ...prev, boss: open ? undefined : s.boss.id })}
                 resetScroll={false}
                 replace
                 aria-expanded={open}
                 className={`${COLUMNS} px-3 py-1.5 text-text no-underline ${open ? 'py-2' : 'border-line border-t'}`}
               >
-                <img src={imageUrl(s.log)} alt="" className="size-11 object-contain" loading="lazy" />
-                <span className={open ? 'font-extrabold text-base' : 'font-semibold'}>{s.log.name}</span>
-                <span className="flex items-center gap-2 text-muted text-xs">
-                  <span className="h-1.5 flex-auto bg-track">
-                    <span className="block h-1.5 bg-gold" style={{ width: `${(s.got / s.total) * 100}%` }} />
-                  </span>
-                  {s.got}/{s.total}
+                <img src={imageUrl(s.boss)} alt="" className="size-11 object-contain" loading="lazy" />
+                <span className={open ? 'font-extrabold text-base' : 'font-semibold'}>
+                  {s.boss.name}
+                  {s.boss.id !== s.log.id && (
+                    <span className="block font-normal text-muted text-xs">{s.log.name} drops</span>
+                  )}
                 </span>
-                <span className={`text-right ${open ? 'font-bold' : ''}`}>{s.total - s.got}</span>
-                <span className={`text-right ${open ? 'font-bold' : ''}`}>{s.tasksLeft}</span>
-                <span className={`text-right ${open ? 'font-bold' : ''}`}>{s.pointsLeft}</span>
+                <Meter got={s.got} total={s.total} kind="drops" />
+                <Meter got={s.tasks.length - s.tasksLeft} total={s.tasks.length} kind="tasks" />
+                <span className={`text-right tabular-nums ${open ? 'font-bold' : ''}`}>{s.pointsLeft}</span>
               </Link>
             )
             return open ? (
-              <div key={s.log.id} id={`log-${s.log.id}`} className="my-1.5 rounded border-2 border-gold-text">
+              <div key={s.boss.id} id={`boss-${s.boss.id}`} className="my-1.5 rounded border-2 border-gold-text">
                 {line}
-                <LogPanel
+                <BossPanel
                   s={s}
                   progress={progress}
                   kills={data.kills}
@@ -216,7 +220,7 @@ function Profile() {
                 />
               </div>
             ) : (
-              <Fragment key={s.log.id}>{line}</Fragment>
+              <Fragment key={s.boss.id}>{line}</Fragment>
             )
           })}
           {rows.length === 0 && (

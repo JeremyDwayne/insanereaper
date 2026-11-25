@@ -14,12 +14,13 @@ const log = (id: string, itemIds: string[]) => ({
   entries: itemIds.map((itemId) => ({ itemId, rarity: '1/1' })),
 })
 const POINTS: Record<Tier, number> = { Easy: 1, Medium: 2, Hard: 3, Elite: 4, Master: 5, Grandmaster: 6 }
-const task = (id: string, logId: string, tier: Tier): Task => ({
+const boss = (id: string, logId = id) => ({ id, name: id, logId, page: id, wikiImage: '', image: '' })
+const task = (id: string, bossId: string, tier: Tier, logId = bossId): Task => ({
   id,
   name: id,
   description: '',
-  subcategory: logId,
-  bossId: logId,
+  subcategory: bossId,
+  bossId,
   logId,
   tier,
   points: POINTS[tier],
@@ -29,7 +30,7 @@ const task = (id: string, logId: string, tier: Tier): Task => ({
 const catalogue: Catalogue = {
   items: [item('shard'), item('helm'), item('pet', true), item('bow')],
   logs: [log('kree', ['shard', 'helm']), log('kril', ['shard', 'pet']), log('nex', ['bow'])],
-  bosses: [],
+  bosses: [boss('kree'), boss('kril'), boss('nex')],
   tasks: [
     task('t1', 'kree', 'Easy'),
     task('t2', 'kree', 'Master'),
@@ -58,7 +59,7 @@ describe('summarize', () => {
 
   it('counts one drop in every log that lists it', () => {
     const s = summarize(catalogue, progress({ shard: 1, helm: 2, bow: 0 }, []))
-    expect(s.logs.map((l) => [l.log.id, l.got, l.total, l.complete])).toEqual([
+    expect(s.bosses.map((l) => [l.log.id, l.got, l.total, l.complete])).toEqual([
       ['kree', 2, 2, true],
       ['kril', 1, 2, false],
       ['nex', 0, 1, false],
@@ -68,12 +69,26 @@ describe('summarize', () => {
 
   it('marks a log done only with every drop and task, and the Reaper with every log', () => {
     const almost = summarize(catalogue, progress({ shard: 1, helm: 1, pet: 1, bow: 1 }, ['t1']))
-    expect(almost.logs.map((l) => [l.log.id, l.tasksLeft, l.pointsLeft, l.done])).toEqual([
+    expect(almost.bosses.map((l) => [l.log.id, l.tasksLeft, l.pointsLeft, l.done])).toEqual([
       ['kree', 1, 5, false],
       ['kril', 1, 6, false],
       ['nex', 1, 4, false],
     ])
     expect([almost.logsComplete, almost.insaneReaper]).toEqual([3, true])
+  })
+
+  it('gives bosses that share a log the same drops and their own achievements', () => {
+    const shared: Catalogue = {
+      ...catalogue,
+      bosses: [boss('seiryu', 'nex'), boss('masuta', 'nex')],
+      tasks: [task('s1', 'seiryu', 'Easy', 'nex'), task('m1', 'masuta', 'Hard', 'nex')],
+    }
+    const s = summarize(shared, progress({ bow: 1 }, ['s1']))
+    expect(s.bosses.map((b) => [b.boss.id, b.got, b.total, b.tasksLeft, b.done])).toEqual([
+      ['seiryu', 1, 1, 0, true],
+      ['masuta', 1, 1, 1, false],
+    ])
+    expect(s.tasksDone).toBe(1)
   })
 
   it('reports no next blessing at Blessing 4', () => {

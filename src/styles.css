@@ -13,6 +13,7 @@
   --color-gold: var(--gold);
   --color-gold-text: var(--gold-text);
   --color-track: var(--track);
+  --color-ach: var(--ach);
   --color-on-gold: #111418;
 }
 
@@ -28,6 +29,7 @@
   --gold: #ffc940;
   --gold-text: #ffc940;
   --track: #2a3039;
+  --ach: #7cc4ff;
   color-scheme: dark;
 }
 
@@ -42,6 +44,7 @@
   --gold: #e0a800;
   --gold-text: #6b4700;
   --track: #e3e5e9;
+  --ach: #1f5fa8;
   color-scheme: light;
 }
 
@@ -57,4 +60,9 @@
     font-family: var(--font-sans);
     font-size: 14px;
   }
+}
+
+/* Achievement bars are segmented so they read apart from the solid drop bars without color. */
+.segmented {
+  background-image: repeating-linear-gradient(90deg, transparent 0 9px, var(--bg) 9px 10px);
 }

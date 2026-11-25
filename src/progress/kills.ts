@@ -10,15 +10,15 @@ export const KILL_LABELS: Record<KillKind, string> = {
 }
 
 /**
- * The kill fields each log offers: every log has Kills, plus Hard mode kills or Highest enrage
+ * The kill fields each boss offers: every boss has Kills, plus Hard mode kills or Highest enrage
  * when one of its achievements mentions a hard mode or an enrage.
  */
 export function killKinds(catalogue: Catalogue): Map<string, KillKind[]> {
-  const kinds = new Map(catalogue.logs.map((log) => [log.id, new Set<KillKind>(['normal'])]))
+  const kinds = new Map(catalogue.bosses.map((boss) => [boss.id, new Set<KillKind>(['normal'])]))
   for (const task of catalogue.tasks) {
     const text = `${task.name} ${task.description}`
-    if (/hard ?mode/i.test(text)) kinds.get(task.logId)?.add('hard')
-    if (/enrage/i.test(text)) kinds.get(task.logId)?.add('enrage')
+    if (/hard ?mode/i.test(text)) kinds.get(task.bossId)?.add('hard')
+    if (/enrage/i.test(text)) kinds.get(task.bossId)?.add('enrage')
   }
   return new Map([...kinds].map(([id, set]) => [id, KILL_KINDS.filter((k) => set.has(k))]))
 }

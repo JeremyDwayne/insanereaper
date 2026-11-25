@@ -4,39 +4,39 @@ import { catalogue, itemsById } from '#/catalogue/index.ts'
 import type { Task } from '#/catalogue/schema.ts'
 import { chanceByNow, KILL_LABELS, type KillKind, killKinds } from '#/progress/kills.ts'
 import type { Edit } from '#/progress/queries.ts'
-import { type LogSummary, obtained, type Progress, tierSummaries } from '#/progress/summary.ts'
+import { type BossSummary, obtained, type Progress, tierSummaries } from '#/progress/summary.ts'
 import { CheckIcon } from './icons.tsx'
 import { Mark } from './Mark.tsx'
 
 const KINDS = killKinds(catalogue)
 
 type Props = {
-  s: LogSummary
+  s: BossSummary
   progress: Progress
-  /** Kill counts keyed by `${logId}:${kind}`. */
+  /** Kill counts keyed by `${bossId}:${kind}`. */
   kills: Record<string, number>
   /** Present only for the character's own account. */
   edit?: (edit: Edit) => void
   show: 'all' | 'drops' | 'tasks'
 }
 
-/** An expanded boss log: art and kill counts, every drop with missing ones first, then achievements left by tier. */
-export function LogPanel({ s, progress, kills, edit, show }: Props) {
+/** An expanded boss: art and kill counts, every drop in its log with missing ones first, then achievements left by tier. */
+export function BossPanel({ s, progress, kills, edit, show }: Props) {
   const [showDone, setShowDone] = useState(false)
   const entries = s.log.entries.map((e) => ({ ...e, item: itemsById.get(e.itemId) }))
   const missing = entries.filter((e) => !obtained(progress, e.itemId))
   const got = entries.filter((e) => obtained(progress, e.itemId))
   const tiers = tierSummaries(s.tasks, progress).filter((t) => showDone || !t.complete)
-  const kinds = KINDS.get(s.log.id) ?? ['normal']
-  const killsOf = (kind: KillKind) => kills[`${s.log.id}:${kind}`] ?? 0
+  const kinds = KINDS.get(s.boss.id) ?? ['normal']
+  const killsOf = (kind: KillKind) => kills[`${s.boss.id}:${kind}`] ?? 0
   const totalKills = killsOf('normal') + killsOf('hard')
 
   return (
     <div className="flex flex-wrap gap-7 px-4 pt-2 pb-5">
       <div className="flex flex-[0_1_200px] flex-col gap-2">
         <img
-          src={imageUrl(s.log)}
-          alt={s.log.name}
+          src={imageUrl(s.boss)}
+          alt={s.boss.name}
           className="h-[227px] w-[180px] rounded bg-surface object-contain"
           loading="lazy"
         />
@@ -45,12 +45,12 @@ export function LogPanel({ s, progress, kills, edit, show }: Props) {
             key={kind}
             kind={kind}
             value={killsOf(kind)}
-            save={edit && ((value) => edit({ logId: s.log.id, kind, value }))}
+            save={edit && ((value) => edit({ bossId: s.boss.id, kind, value }))}
           />
         ))}
         {s.log.title && <span className="text-muted text-xs">Log title: {s.log.title}</span>}
         <a
-          href={`https://runescape.wiki/w/${encodeURIComponent(s.log.page.replaceAll(' ', '_'))}`}
+          href={`https://runescape.wiki/w/${encodeURIComponent(s.boss.page.replaceAll(' ', '_'))}`}
           className="text-xs"
           target="_blank"
           rel="noreferrer"
@@ -62,7 +62,7 @@ export function LogPanel({ s, progress, kills, edit, show }: Props) {
         {show !== 'tasks' && (
           <div>
             <h3 className="mt-0 mb-2 font-bold text-sm">
-              Drops{' '}
+              {s.boss.id === s.log.id ? 'Drops' : `${s.log.name} drops`}{' '}
               <span className="font-normal text-muted">
                 {missing.length} of {entries.length} missing
                 {totalKills > 0 && `, chance by now at ${totalKills.toLocaleString()} kills`}

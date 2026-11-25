@@ -1,4 +1,4 @@
-import { type Catalogue, type Log, type Task, TIERS, type Tier } from '#/catalogue/schema.ts'
+import { type Boss, type Catalogue, type Log, type Task, TIERS, type Tier } from '#/catalogue/schema.ts'
 
 /** A character's progress: drop counts by item id and the ids of done tasks. */
 export type Progress = { items: Record<string, number>; tasks: ReadonlySet<string> }
@@ -8,7 +8,9 @@ export const BLESSINGS = [25, 151, 670, 1450] as const
 
 export type TierSummary = { tier: Tier; done: number; total: number; pointsLeft: number; complete: boolean }
 
-export type LogSummary = {
+/** One boss row. Drops come from the boss's log, which other bosses in the same dungeon share. */
+export type BossSummary = {
+  boss: Boss
   log: Log
   got: number
   total: number
@@ -28,7 +30,9 @@ export type Summary = {
   toNextBlessing: number | null
   tiers: TierSummary[]
   drops: { got: number; total: number }
-  logs: LogSummary[]
+  tasksDone: number
+  /** In the game's combat achievement list order. */
+  bosses: BossSummary[]
   logsComplete: number
   insaneReaper: boolean
 }
@@ -51,23 +55,32 @@ export function summarize(catalogue: Catalogue, progress: Progress): Summary {
   const blessing = BLESSINGS.filter((at) => score >= at).length
   const next = BLESSINGS[blessing]
 
-  const logs = catalogue.logs.map((log): LogSummary => {
-    const got = log.entries.filter((e) => obtained(progress, e.itemId)).length
-    const tasks = catalogue.tasks.filter((t) => t.logId === log.id)
+  const logGot = new Map(
+    catalogue.logs.map((log) => [log.id, log.entries.filter((e) => obtained(progress, e.itemId)).length]),
+  )
+  const logs = new Map(catalogue.logs.map((log) => [log.id, log]))
+  const bosses = catalogue.bosses.flatMap((boss): BossSummary[] => {
+    const log = logs.get(boss.logId)
+    if (!log) return []
+    const got = logGot.get(log.id) ?? 0
+    const tasks = catalogue.tasks.filter((t) => t.bossId === boss.id)
     const left = tasks.filter((t) => !progress.tasks.has(t.id))
     const complete = got === log.entries.length
-    return {
-      log,
-      got,
-      total: log.entries.length,
-      complete,
-      tasks,
-      tasksLeft: left.length,
-      pointsLeft: left.reduce((sum, t) => sum + t.points, 0),
-      done: complete && left.length === 0,
-    }
+    return [
+      {
+        boss,
+        log,
+        got,
+        total: log.entries.length,
+        complete,
+        tasks,
+        tasksLeft: left.length,
+        pointsLeft: left.reduce((sum, t) => sum + t.points, 0),
+        done: complete && left.length === 0,
+      },
+    ]
   })
-  const logsComplete = logs.filter((l) => l.complete).length
+  const logsComplete = catalogue.logs.filter((log) => logGot.get(log.id) === log.entries.length).length
 
   return {
     score,
@@ -76,8 +89,9 @@ export function summarize(catalogue: Catalogue, progress: Progress): Summary {
     toNextBlessing: next === undefined ? null : next - score,
     tiers: tierSummaries(catalogue.tasks, progress),
     drops: { got: catalogue.items.filter((i) => obtained(progress, i.id)).length, total: catalogue.items.length },
-    logs,
+    tasksDone: catalogue.tasks.filter((t) => progress.tasks.has(t.id)).length,
+    bosses,
     logsComplete,
-    insaneReaper: logsComplete === logs.length,
+    insaneReaper: logsComplete === catalogue.logs.length,
   }
 }
