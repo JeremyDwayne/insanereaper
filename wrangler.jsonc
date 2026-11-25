@@ -1,16 +1,19 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "insanereaper",
+  "account_id": "7f6fc59b7a971d6ae58ffaac015fcc0e",
   "compatibility_date": "2026-11-23",
   "compatibility_flags": ["nodejs_compat"],
   "main": "@tanstack/react-start/server-entry",
   "observability": { "enabled": true },
   "upload_source_maps": true,
+  "workers_dev": false,
+  "routes": [{ "pattern": "insanereaper.com", "custom_domain": true }],
   "vars": {
     "BETTER_AUTH_URL": "https://insanereaper.com",
     "EMAIL_FROM": "Insane Reaper <login@insanereaper.com>"
   },
-  // Secrets, set with `wrangler secret put` and in .dev.vars locally: BETTER_AUTH_SECRET, POSTMARK_TOKEN
+  // Secrets: BETTER_AUTH_SECRET and POSTMARK_TOKEN. GitHub Actions uploads them on deploy; locally they live in .dev.vars.
   "d1_databases": [
     {
       "binding": "DB",
