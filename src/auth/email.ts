@@ -4,10 +4,11 @@ import { env } from 'cloudflare:workers'
 export const signInLink = (email: string, code: string) =>
   `${env.BETTER_AUTH_URL}/signed-in?${new URLSearchParams({ email, code })}`
 
-/** Emails a sign-in code and link through Postmark. Without a token (local dev) it logs them instead. */
+/** Emails a sign-in code and link through Postmark. On localhost without a token it logs them instead. */
 export async function sendSignInEmail(to: string, code: string): Promise<void> {
   const url = signInLink(to, code)
   if (!env.POSTMARK_TOKEN) {
+    if (!env.BETTER_AUTH_URL.startsWith('http://localhost')) throw new Error('POSTMARK_TOKEN is not set')
     console.log(`Sign-in code for ${to}: ${code} ${url}`)
     return
   }
