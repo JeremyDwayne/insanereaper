@@ -3,6 +3,8 @@ import type { BetterAuthOptions } from 'better-auth'
 /** Options shared by the app and the better-auth CLI, which generates the auth tables from them. */
 export const authOptions = {
   appName: 'Insane Reaper',
+  // Sign-in is by emailed code only. These plugin routes also send email, and nothing here uses them.
+  disabledPaths: ['/email-otp/request-password-reset', '/forget-password/email-otp'],
   rateLimit: {
     enabled: true,
     storage: 'database',

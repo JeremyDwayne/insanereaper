@@ -13,7 +13,7 @@
     "BETTER_AUTH_URL": "https://insanereaper.com",
     "EMAIL_FROM": "Insane Reaper <login@insanereaper.com>"
   },
-  // Secrets, set once on the Worker with `wrangler secret put` and in .dev.vars locally: BETTER_AUTH_SECRET, POSTMARK_TOKEN
+  // Secrets, set once on the Worker with `wrangler secret put` and in .dev.vars locally: BETTER_AUTH_SECRET, POSTMARK_TOKEN, TURNSTILE_SECRET_KEY
   "d1_databases": [
     {
       "binding": "DB",

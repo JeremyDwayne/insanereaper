@@ -6,6 +6,7 @@ import { authClient, SIGNED_IN } from '#/auth/client.ts'
 import { CharacterName } from '#/characters/name.ts'
 import { Header } from '#/components/Header.tsx'
 import { CheckIcon, InfoIcon, MailIcon } from '#/components/icons.tsx'
+import { Turnstile } from '#/components/Turnstile.tsx'
 import { checkName, claimCharacter, getMe } from '#/server/characters.ts'
 
 export const Route = createFileRoute('/start')({
@@ -24,7 +25,7 @@ export const Route = createFileRoute('/start')({
 const panel = 'mx-auto flex max-w-[520px] flex-col gap-4 rounded border bg-surface p-7'
 const field = 'rounded border border-line2 bg-bg px-3 py-2.5'
 const primary = 'min-h-11 cursor-pointer rounded border-0 bg-gold font-bold text-on-gold disabled:opacity-60'
-const secondary = 'min-h-11 cursor-pointer rounded border border-line2 bg-transparent font-bold'
+const secondary = 'min-h-11 cursor-pointer rounded border border-line2 bg-transparent font-bold disabled:opacity-60'
 
 function Start() {
   const { signedIn } = Route.useLoaderData()
@@ -50,6 +51,8 @@ function SignInForm() {
   const [sent, setSent] = useState('')
   const [code, setCode] = useState('')
   const [error, setError] = useState('')
+  const [token, setToken] = useState('')
+  const [attempt, setAttempt] = useState(0)
 
   // Profiles cached while signed out say the account owns nothing, so drop them before moving on.
   const signedIn = useCallback(() => {
@@ -74,7 +77,17 @@ function SignInForm() {
         onSubmit={async (e) => {
           e.preventDefault()
           setError('')
-          const { error } = await authClient.emailOtp.sendVerificationOtp({ email, type: 'sign-in' })
+          // A token works once: clear it so a second click cannot reuse it, then get a new widget.
+          setToken('')
+          // The client throws when the request never arrives, which counts as a failed send.
+          const { error } = await authClient.emailOtp
+            .sendVerificationOtp({
+              email,
+              type: 'sign-in',
+              fetchOptions: { headers: { 'x-captcha-response': token } },
+            })
+            .catch(() => ({ error: { status: 0 } }))
+          setAttempt((n) => n + 1)
           if (error)
             setError(
               error.status === 429
@@ -88,7 +101,8 @@ function SignInForm() {
           Email
           <input type="email" required value={email} className={field} onChange={(e) => setEmail(e.target.value)} />
         </label>
-        <button type="submit" className={sent ? secondary : primary}>
+        <Turnstile key={attempt} onToken={setToken} />
+        <button type="submit" disabled={!token} className={sent ? secondary : primary}>
           {sent ? 'Send a new code' : 'Email me a code'}
         </button>
       </form>
