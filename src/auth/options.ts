@@ -11,6 +11,8 @@ export const authOptions = {
       '/sign-in/email-otp': { window: 600, max: 10 },
     },
   },
+  // Sessions last 90 days and renew once a day while in use, so regular players stay signed in.
+  session: { expiresIn: 90 * 24 * 60 * 60, updateAge: 24 * 60 * 60 },
   advanced: { ipAddress: { ipAddressHeaders: ['cf-connecting-ip'] } },
 } satisfies BetterAuthOptions
 
