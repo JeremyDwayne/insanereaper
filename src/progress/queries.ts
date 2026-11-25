@@ -26,6 +26,8 @@ export function useEdit(slug: string) {
   const queryClient = useQueryClient()
   const { queryKey } = characterQuery(slug)
   return useMutation({
+    // One at a time, so quick +1 clicks reach the server in order.
+    scope: { id: slug },
     mutationFn: async (edit: Edit) => {
       const characterId = queryClient.getQueryData(queryKey)?.id ?? ''
       const data = { characterId, ...edit }
