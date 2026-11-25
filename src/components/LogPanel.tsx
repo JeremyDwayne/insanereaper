@@ -20,9 +20,8 @@ type Props = {
   show: 'all' | 'drops' | 'tasks'
 }
 
-/** An expanded boss log: art, missing drops first, then achievements left by tier. */
+/** An expanded boss log: art and kill counts, every drop with missing ones first, then achievements left by tier. */
 export function LogPanel({ s, progress, kills, edit, show }: Props) {
-  const [showObtained, setShowObtained] = useState(false)
   const [showDone, setShowDone] = useState(false)
   const entries = s.log.entries.map((e) => ({ ...e, item: itemsById.get(e.itemId) }))
   const missing = entries.filter((e) => !obtained(progress, e.itemId))
@@ -63,30 +62,20 @@ export function LogPanel({ s, progress, kills, edit, show }: Props) {
         {show !== 'tasks' && (
           <div>
             <h3 className="mt-0 mb-2 font-bold text-sm">
-              Missing drops{' '}
+              Drops{' '}
               <span className="font-normal text-muted">
-                {missing.length} of {entries.length}
+                {missing.length} of {entries.length} missing
                 {totalKills > 0 && `, chance by now at ${totalKills.toLocaleString()} kills`}
               </span>
             </h3>
-            <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-1.5">
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-1.5">
               {missing.map((e) => (
                 <Drop key={e.itemId} {...e} count={0} kills={totalKills} edit={edit} />
               ))}
-              {showObtained &&
-                got.map((e) => (
-                  <Drop key={e.itemId} {...e} count={progress.items[e.itemId] ?? 0} kills={0} edit={edit} />
-                ))}
+              {got.map((e) => (
+                <Drop key={e.itemId} {...e} count={progress.items[e.itemId] ?? 0} kills={0} edit={edit} />
+              ))}
             </div>
-            {got.length > 0 && (
-              <button
-                type="button"
-                className="mt-2 cursor-pointer border-0 bg-transparent p-0 font-semibold text-[13px] text-gold-text"
-                onClick={() => setShowObtained(!showObtained)}
-              >
-                {showObtained ? 'Hide' : 'Show'} {got.length} obtained drops
-              </button>
-            )}
           </div>
         )}
         {show !== 'drops' && s.tasks.length > 0 && (
@@ -97,11 +86,11 @@ export function LogPanel({ s, progress, kills, edit, show }: Props) {
                 {s.tasksLeft} of {s.tasks.length}, {s.pointsLeft} points
               </span>
             </h3>
-            <div className="flex flex-col gap-3.5">
+            <div className="flex flex-col gap-4">
               {tiers.map((t) => (
                 <div key={t.tier}>
-                  <div className="flex items-center gap-2.5 border-line border-b py-1.5">
-                    <span className="font-extrabold">{t.tier}</span>
+                  <div className="flex items-baseline gap-2.5 rounded-t border-line2 border-b-2 bg-raise px-2.5 py-2">
+                    <span className="font-extrabold text-[15px]">{t.tier}</span>
                     <span className="text-muted text-xs">
                       {t.done} of {t.total} done, {t.pointsLeft} points left
                     </span>
@@ -140,25 +129,25 @@ type DropProps = {
   edit?: (edit: Edit) => void
 }
 
-const step = 'size-7 cursor-pointer rounded border border-line2 bg-bg font-bold text-text'
-
-/** A drop tile. Missing tiles are dashed; obtained tiles are solid with a check and the count. */
+/** A drop tile. Missing tiles have a dashed outline; obtained tiles a solid gold one with a check and the count. */
 function Drop({ itemId, rarity, item, count, kills, edit }: DropProps) {
   const chance = kills > 0 ? chanceByNow(rarity, kills) : null
   const body = (
     <>
-      {item && <img src={imageUrl(item)} alt="" className="size-7 object-contain" loading="lazy" />}
+      {item && <img src={imageUrl(item)} alt="" className="size-8 flex-none object-contain" loading="lazy" />}
       <span className="min-w-0 flex-auto">
-        <span className="block text-[13px]">{item?.name ?? itemId}</span>
+        <span className="block text-[13px]">
+          {item?.name ?? itemId}
+          {item?.pet && <span className="ml-1.5 font-bold text-[11px] text-muted">Pet</span>}
+        </span>
         <span className="block text-muted text-xs">
           {rarity}
           {chance !== null && `, ${Math.round(chance * 100)}% by now`}
         </span>
       </span>
-      {item?.pet && <span className="font-bold text-[11px] text-muted">Pet</span>}
     </>
   )
-  const box = 'flex min-h-11 items-center gap-2.5 rounded bg-surface px-2.5 py-2 text-left'
+  const box = 'flex min-h-14 items-center gap-2.5 rounded bg-surface px-2.5 py-2 text-left'
   if (count === 0) {
     const missing = `${box} border border-line2 border-dashed`
     return edit ? (
@@ -177,33 +166,51 @@ function Drop({ itemId, rarity, item, count, kills, edit }: DropProps) {
   return (
     <div className={`${box} border-2 border-gold-text`}>
       {body}
-      <span className="flex items-center gap-1 font-bold text-gold-text text-xs">
+      <span className="flex flex-none items-center gap-1 font-bold text-gold-text text-xs">
         <CheckIcon size={14} />
-        {edit ? (
-          <>
-            <button
-              type="button"
-              className={step}
-              aria-label="One fewer"
-              onClick={() => edit({ itemId, count: count - 1 })}
-            >
-              -
-            </button>
-            {count}
-            <button
-              type="button"
-              className={step}
-              aria-label="One more"
-              onClick={() => edit({ itemId, count: Math.min(count + 1, 65535) })}
-            >
-              +
-            </button>
-          </>
-        ) : (
-          `Got ${count}`
-        )}
+        {edit ? <CountEditor count={count} save={(next) => edit({ itemId, count: next })} /> : count}
       </span>
     </div>
+  )
+}
+
+/** The obtained count as a button; clicking it swaps in a small field. Enter or leaving saves, Escape cancels, 0 marks missing. */
+function CountEditor({ count, save }: { count: number; save: (count: number) => void }) {
+  const [text, setText] = useState<string | null>(null)
+  if (text === null)
+    return (
+      <button
+        type="button"
+        title="Edit count"
+        className="min-w-8 cursor-pointer rounded border border-line2 border-dashed bg-transparent px-1.5 py-1 font-bold text-gold-text"
+        onClick={() => setText(String(count))}
+      >
+        {count}
+      </button>
+    )
+  const commit = () => {
+    const next = Math.max(0, Math.min(65535, Math.trunc(Number(text) || 0)))
+    setText(null)
+    if (next !== count) save(next)
+  }
+  return (
+    <input
+      type="number"
+      min={0}
+      max={65535}
+      value={text}
+      aria-label="Count"
+      // biome-ignore lint/a11y/noAutofocus: the field only appears because the user clicked to edit.
+      autoFocus
+      onFocus={(e) => e.currentTarget.select()}
+      className="w-16 rounded border border-line2 bg-bg px-1.5 py-1 text-right text-text"
+      onChange={(e) => setText(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') e.currentTarget.blur()
+        if (e.key === 'Escape') setText(null)
+      }}
+    />
   )
 }
 
@@ -216,7 +223,7 @@ function TaskRow({ task, done, edit }: { task: Task; done: boolean; edit?: (edit
     </span>
   )
   const points = <span className="whitespace-nowrap text-xs">{task.points} pts</span>
-  const row = 'flex items-start gap-3 border-line border-b py-2'
+  const row = 'flex items-start gap-3 border-line border-b px-2.5 py-2'
   return edit ? (
     <label className={`${row} cursor-pointer`}>
       <input
