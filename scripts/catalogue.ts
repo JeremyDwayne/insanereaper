@@ -6,9 +6,10 @@ import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
+import { type } from 'arktype'
 import { buildCatalogue, cleanAliases, parseLogs, parsePets, parseTasks } from '../src/catalogue/parse.ts'
-import { Catalogue, TIERS } from '../src/catalogue/schema.ts'
-import { LOG_PAGES } from '../src/catalogue/subcategories.ts'
+import { type Catalogue, TIERS } from '../src/catalogue/schema.ts'
+import { BOSS_PAGES, GROUP_PREFIXES, LOG_PAGES, SUBCATEGORY_LOGS } from '../src/catalogue/subcategories.ts'
 
 const WIKI = 'https://runescape.wiki'
 const API = `${WIKI}/api.php`
@@ -37,6 +38,12 @@ async function api<T>(params: Record<string, string>): Promise<T> {
 
 async function pageHtml(page: string): Promise<string> {
   const data = await api<{ parse: { text: string } }>({ action: 'parse', page, prop: 'text' })
+  return data.parse.text
+}
+
+/** Renders wikitext, such as a list template with options the wiki's own page does not use. */
+async function renderHtml(text: string): Promise<string> {
+  const data = await api<{ parse: { text: string } }>({ action: 'parse', text, contentmodel: 'wikitext', prop: 'text' })
   return data.parse.text
 }
 
@@ -80,14 +87,20 @@ async function queryTitles(titles: string[], params: Record<string, string>): Pr
   return byTitle
 }
 
-const [logsHtml, petsHtml, tasksHtml] = await Promise.all(
-  ['Boss collection log', 'Boss pets', 'Combat Mastery achievements'].map(pageHtml),
-)
+const [logsHtml, petsHtml, tasksHtml] = await Promise.all([
+  pageHtml('Boss collection log'),
+  pageHtml('Boss pets'),
+  renderHtml('{{Achievements list|Combat Mastery|category_column=no|mastery_tier_column=yes|sequence_number=yes}}'),
+])
 const logs = parseLogs(logsHtml)
 const pets = parsePets(petsHtml)
 const tasks = parseTasks(tasksHtml)
 
-const bossPages = logs.map((log) => LOG_PAGES[log.page] ?? log.page)
+// Subcategories that split a shared log get their own boss page and image.
+const splitPages = [...new Set(tasks.map((t) => t.subcategory))]
+  .filter((sub) => SUBCATEGORY_LOGS[sub] && !GROUP_PREFIXES.some((p) => sub.startsWith(p)))
+  .map((sub) => BOSS_PAGES[sub] ?? sub)
+const bossPages = [...logs.map((log) => LOG_PAGES[log.page] ?? log.page), ...splitPages]
 const itemNames = [...new Set(logs.flatMap((log) => log.entries.map((e) => e.name)))]
 const bossInfo = await queryTitles(bossPages, {
   prop: 'pageimages|redirects',
@@ -112,6 +125,10 @@ for (const log of logs) {
     ),
   )
 }
+for (const page of splitPages) {
+  const source = bossInfo.get(page)?.thumbnail?.source
+  if (source) pageImages.set(page, new URL(source).pathname + new URL(source).search)
+}
 for (const name of itemNames) {
   aliases.set(
     name,
@@ -124,18 +141,33 @@ for (const name of itemNames) {
 
 const catalogue = buildCatalogue({ logs, pets, tasks, pageImages, aliases })
 
-const noImage = catalogue.logs.filter((log) => !log.wikiImage).map((log) => log.name)
-if (noImage.length) throw new Error(`Logs with no boss image, add them to LOG_PAGES: ${noImage.join(', ')}`)
+const noImage = [...catalogue.logs, ...catalogue.bosses].filter((x) => !x.wikiImage).map((x) => x.name)
+if (noImage.length) throw new Error(`No boss image, add a page to LOG_PAGES or BOSS_PAGES: ${noImage.join(', ')}`)
 const petIds = new Set(catalogue.items.filter((item) => item.pet).map((item) => item.id))
 const noPet = catalogue.logs.filter((log) => !log.entries.some((e) => petIds.has(e.itemId))).map((log) => log.name)
 
+/** The parts of the previous catalogue this build reads: ids and image keys. Older builds have no bosses. */
+const Pictured = type({ id: 'string', wikiImage: 'string', image: 'string' })
+const Previous = type({
+  logs: Pictured.array(),
+  'bosses?': Pictured.array(),
+  items: Pictured.array(),
+  tasks: type({ id: 'string' }).array(),
+})
+type Previous = typeof Previous.infer
+
 /**
- * Gives every log and item an R2 image key named by content hash, so the image can be cached forever.
+ * Gives every log, boss and item an R2 image key named by content hash, so the image can be cached forever.
  * Reuses the previous key when the wiki image URL, which carries the wiki's own file hash, is unchanged.
  */
-async function syncImages(next: Catalogue, previous: Catalogue | null) {
-  const known = new Map([...(previous?.logs ?? []), ...(previous?.items ?? [])].map((x) => [x.wikiImage, x.image]))
-  const entries = [...next.logs, ...next.items]
+async function syncImages(next: Catalogue, previous: Previous | null) {
+  const known = new Map(
+    [...(previous?.logs ?? []), ...(previous?.bosses ?? []), ...(previous?.items ?? [])].map((x) => [
+      x.wikiImage,
+      x.image,
+    ]),
+  )
+  const entries = [...next.logs, ...next.bosses, ...next.items]
   const todo = [...new Set(entries.map((x) => x.wikiImage).filter((src) => !known.get(src)))]
   const dir = mkdtempSync(join(tmpdir(), 'insanereaper-'))
   let uploaded = 0
@@ -168,11 +200,11 @@ async function syncImages(next: Catalogue, previous: Catalogue | null) {
   console.log(`${uploaded} new images uploaded to R2`)
 }
 
-const previous = existsSync(OUT) ? Catalogue.assert(JSON.parse(readFileSync(OUT, 'utf8'))) : null
+const previous = existsSync(OUT) ? Previous.assert(JSON.parse(readFileSync(OUT, 'utf8'))) : null
 await syncImages(catalogue, previous)
 
 if (previous) {
-  const ids = (c: Catalogue) => new Set([...c.logs, ...c.items, ...c.tasks].map((x) => x.id))
+  const ids = (c: Previous) => new Set([...c.logs, ...(c.bosses ?? []), ...c.items, ...c.tasks].map((x) => x.id))
   const next = ids(catalogue)
   const removed = [...ids(previous)].filter((id) => !next.has(id))
   if (removed.length) console.warn(`Removed ids, check for progress before deploying: ${removed.join(', ')}`)
@@ -183,6 +215,8 @@ writeFileSync(OUT, `${JSON.stringify(catalogue, null, 1)}\n`)
 const points = catalogue.tasks.reduce((sum, t) => sum + t.points, 0)
 const perTier = TIERS.map((tier) => `${tier} ${catalogue.tasks.filter((t) => t.tier === tier).length}`).join(', ')
 const rows = catalogue.logs.reduce((sum, log) => sum + log.entries.length, 0)
-console.log(`${catalogue.logs.length} logs, ${rows} rows, ${catalogue.items.length} unique items`)
+console.log(
+  `${catalogue.logs.length} logs, ${catalogue.bosses.length} bosses, ${rows} rows, ${catalogue.items.length} unique items`,
+)
 console.log(`${catalogue.tasks.length} tasks, ${points} points: ${perTier}`)
 if (noPet.length) console.log(`Logs with no pet found: ${noPet.join(', ')}`)

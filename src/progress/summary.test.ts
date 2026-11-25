@@ -19,6 +19,7 @@ const task = (id: string, logId: string, tier: Tier): Task => ({
   name: id,
   description: '',
   subcategory: logId,
+  bossId: logId,
   logId,
   tier,
   points: POINTS[tier],
@@ -28,6 +29,7 @@ const task = (id: string, logId: string, tier: Tier): Task => ({
 const catalogue: Catalogue = {
   items: [item('shard'), item('helm'), item('pet', true), item('bow')],
   logs: [log('kree', ['shard', 'helm']), log('kril', ['shard', 'pet']), log('nex', ['bow'])],
+  bosses: [],
   tasks: [
     task('t1', 'kree', 'Easy'),
     task('t2', 'kree', 'Master'),

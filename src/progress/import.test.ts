@@ -4,6 +4,7 @@ import { matchExport, ProgressExport } from './import.ts'
 
 const catalogue: Catalogue = {
   logs: [],
+  bosses: [],
   items: [
     { id: 'zaryte-bow', name: 'Zaryte bow', pet: false, wikiImage: '', image: '', aliases: ['Zbow'] },
     { id: 'omens-helm', name: 'Helm of omens', pet: false, wikiImage: '', image: '', aliases: ['Omens helm'] },
@@ -14,6 +15,7 @@ const catalogue: Catalogue = {
       name: 'Nex Master Speed Killer',
       description: 'Defeat Nex solo in less than 01:21.',
       subcategory: 'Nex',
+      bossId: 'nex',
       logId: 'nex',
       tier: 'Master',
       points: 5,
