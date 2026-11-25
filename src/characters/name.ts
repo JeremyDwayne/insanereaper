@@ -1,7 +1,12 @@
 import { type } from 'arktype'
 
-/** A RuneScape display name: 1 to 12 letters, digits, spaces, hyphens or underscores. */
-export const CharacterName = type('string.trim').to(/^[A-Za-z0-9 _-]{1,12}$/)
+/** Site paths that a profile at /<name> would shadow. */
+const RESERVED = new Set(['account', 'api', 'login', 'signed in', 'start'])
+
+/** A RuneScape display name: 1 to 12 letters, digits, spaces, hyphens or underscores, and not a site path. */
+export const CharacterName = type('string.trim')
+  .to(/^[A-Za-z0-9 _-]{1,12}$/)
+  .narrow((name, ctx) => !RESERVED.has(nameKey(name)) || ctx.mustBe('a name that is not a site page'))
 
 /**
  * The uniqueness key for a name. The game treats case, spaces, hyphens and underscores as

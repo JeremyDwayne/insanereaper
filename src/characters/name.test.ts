@@ -8,8 +8,8 @@ describe('CharacterName', () => {
     expect(CharacterName('JeremyDwayne')).toBe('JeremyDwayne')
   })
 
-  it('rejects empty, long, or punctuated names', () => {
-    for (const bad of ['', 'ThirteenChars', "Kree'arra", 'a.b']) {
+  it('rejects empty, long, punctuated, or reserved names', () => {
+    for (const bad of ['', 'ThirteenChars', "Kree'arra", 'a.b', 'Account', 'api']) {
       expect(CharacterName(bad)).toBeInstanceOf(type.errors)
     }
   })
