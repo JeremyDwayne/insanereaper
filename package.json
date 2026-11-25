@@ -1,5 +1,6 @@
 {
   "name": "insanereaper",
+  "license": "MIT",
   "private": true,
   "type": "module",
   "imports": {
