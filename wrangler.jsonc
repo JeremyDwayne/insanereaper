@@ -1,0 +1,25 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "insanereaper",
+  "account_id": "7f6fc59b7a971d6ae58ffaac015fcc0e",
+  "compatibility_date": "2026-11-23",
+  "compatibility_flags": ["nodejs_compat"],
+  "main": "@tanstack/react-start/server-entry",
+  "observability": { "enabled": true },
+  "upload_source_maps": true,
+  "workers_dev": false,
+  "routes": [{ "pattern": "insanereaper.com", "custom_domain": true }],
+  "vars": {
+    "BETTER_AUTH_URL": "https://insanereaper.com",
+    "EMAIL_FROM": "Insane Reaper <login@insanereaper.com>"
+  },
+  // Secrets, set once on the Worker with `wrangler secret put` and in .dev.vars locally: BETTER_AUTH_SECRET, POSTMARK_TOKEN
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "insanereaper",
+      "database_id": "47e87789-bf0c-4a8a-b9a6-9ba0adb7dbcc",
+      "migrations_dir": "drizzle"
+    }
+  ]
+}

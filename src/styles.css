@@ -1,0 +1,60 @@
+@import "@fontsource-variable/inter";
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-raise: var(--raise);
+  --color-line: var(--line);
+  --color-line2: var(--line2);
+  --color-text: var(--text);
+  --color-muted: var(--muted);
+  --color-gold: var(--gold);
+  --color-gold-text: var(--gold-text);
+  --color-track: var(--track);
+  --color-on-gold: #111418;
+}
+
+/* Theme tokens; the root element carries `dark` or `light`. */
+.dark {
+  --bg: #111418;
+  --surface: #1b1f25;
+  --raise: #232830;
+  --line: #2a3039;
+  --line2: #5b6370;
+  --text: #eef0f3;
+  --muted: #aeb4be;
+  --gold: #ffc940;
+  --gold-text: #ffc940;
+  --track: #2a3039;
+  color-scheme: dark;
+}
+
+.light {
+  --bg: #ffffff;
+  --surface: #f3f4f6;
+  --raise: #e9ebef;
+  --line: #d6d9de;
+  --line2: #7b8290;
+  --text: #111418;
+  --muted: #4a515c;
+  --gold: #e0a800;
+  --gold-text: #6b4700;
+  --track: #e3e5e9;
+  color-scheme: light;
+}
+
+@layer base {
+  a {
+    color: var(--gold-text);
+  }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-sans);
+    font-size: 14px;
+  }
+}
