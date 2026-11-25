@@ -13,13 +13,12 @@
     "BETTER_AUTH_URL": "https://insanereaper.com",
     "EMAIL_FROM": "Insane Reaper <login@insanereaper.com>"
   },
-  // Secrets: BETTER_AUTH_SECRET and POSTMARK_TOKEN. GitHub Actions uploads them on deploy; locally they live in .dev.vars.
+  // Secrets, set once on the Worker with `wrangler secret put` and in .dev.vars locally: BETTER_AUTH_SECRET, POSTMARK_TOKEN
   "d1_databases": [
     {
       "binding": "DB",
       "database_name": "insanereaper",
-      // Replaced with the real id once the database is created with `wrangler d1 create insanereaper`.
-      "database_id": "00000000-0000-0000-0000-000000000000",
+      "database_id": "47e87789-bf0c-4a8a-b9a6-9ba0adb7dbcc",
       "migrations_dir": "drizzle"
     }
   ]

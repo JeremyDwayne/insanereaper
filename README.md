@@ -25,7 +25,12 @@ When a boss ships, run `pnpm catalogue`. It reads the RuneScape Wiki, rewrites `
 
 ## Deploy
 
-Every push to `main` that passes CI deploys to Cloudflare Workers from GitHub Actions: it applies D1 migrations, builds, and uploads the Worker with its secrets. The repo needs these Actions secrets: `CLOUDFLARE_API_TOKEN`, `BETTER_AUTH_SECRET` and `POSTMARK_TOKEN`.
+Cloudflare Workers Builds deploys every push to `main`. The Worker's Settings, Builds page holds:
+
+- Build command: `pnpm typecheck && pnpm lint && pnpm test && pnpm build`
+- Deploy command: `pnpm wrangler d1 migrations apply insanereaper --remote && pnpm wrangler deploy`
+
+Secrets are set once on the Worker with `pnpm wrangler secret put BETTER_AUTH_SECRET` and `pnpm wrangler secret put POSTMARK_TOKEN`. Deploys keep them.
 
 ## Credits
 
