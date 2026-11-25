@@ -5,9 +5,10 @@ import { Fragment, useEffect, useMemo, useState } from 'react'
 import { imageUrl } from '#/catalogue/images.ts'
 import { catalogue } from '#/catalogue/index.ts'
 import { Header, HeaderButton } from '#/components/Header.tsx'
-import { LinkIcon } from '#/components/icons.tsx'
+import { DownloadIcon, LinkIcon } from '#/components/icons.tsx'
 import { LogPanel } from '#/components/LogPanel.tsx'
 import { Search } from '#/components/Search.tsx'
+import { downloadXlsx } from '#/export/xlsx.ts'
 import { characterQuery, useEdit } from '#/progress/queries.ts'
 import { type LogSummary, summarize } from '#/progress/summary.ts'
 
@@ -80,7 +81,18 @@ function Profile() {
 
   return (
     <>
-      <Header signedIn={data.signedIn} actions={<CopyLink slug={data.slug} />}>
+      <Header
+        signedIn={data.signedIn}
+        actions={
+          <>
+            <CopyLink slug={data.slug} />
+            <HeaderButton onClick={() => downloadXlsx(catalogue, progress, data.name)}>
+              <DownloadIcon />
+              Export .xlsx
+            </HeaderButton>
+          </>
+        }
+      >
         <Search slug={data.slug} logs={summary.logs} progress={progress} />
       </Header>
       <main className="mx-auto flex max-w-[1240px] flex-col gap-5.5 px-4 py-6 sm:px-8">

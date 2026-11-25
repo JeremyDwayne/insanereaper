@@ -63,3 +63,9 @@ export const InfoIcon = (p: IconProps) => (
     <path d="M12 8v5M12 16v.5" />
   </Icon>
 )
+
+export const DownloadIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M12 3v12M7 10l5 5 5-5M5 21h14" />
+  </Icon>
+)
