@@ -1,28 +1,36 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { imageUrl } from '#/catalogue/images.ts'
-import { itemsById } from '#/catalogue/index.ts'
+import { catalogue, itemsById } from '#/catalogue/index.ts'
 import type { Task } from '#/catalogue/schema.ts'
+import { chanceByNow, KILL_LABELS, type KillKind, killKinds } from '#/progress/kills.ts'
 import type { Edit } from '#/progress/queries.ts'
 import { type LogSummary, obtained, type Progress, tierSummaries } from '#/progress/summary.ts'
 import { CheckIcon } from './icons.tsx'
 import { Mark } from './Mark.tsx'
 
+const KINDS = killKinds(catalogue)
+
 type Props = {
   s: LogSummary
   progress: Progress
+  /** Kill counts keyed by `${logId}:${kind}`. */
+  kills: Record<string, number>
   /** Present only for the character's own account. */
   edit?: (edit: Edit) => void
   show: 'all' | 'drops' | 'tasks'
 }
 
 /** An expanded boss log: art, missing drops first, then achievements left by tier. */
-export function LogPanel({ s, progress, edit, show }: Props) {
+export function LogPanel({ s, progress, kills, edit, show }: Props) {
   const [showObtained, setShowObtained] = useState(false)
   const [showDone, setShowDone] = useState(false)
   const entries = s.log.entries.map((e) => ({ ...e, item: itemsById.get(e.itemId) }))
   const missing = entries.filter((e) => !obtained(progress, e.itemId))
   const got = entries.filter((e) => obtained(progress, e.itemId))
   const tiers = tierSummaries(s.tasks, progress).filter((t) => showDone || !t.complete)
+  const kinds = KINDS.get(s.log.id) ?? ['normal']
+  const killsOf = (kind: KillKind) => kills[`${s.log.id}:${kind}`] ?? 0
+  const totalKills = killsOf('normal') + killsOf('hard')
 
   return (
     <div className="flex flex-wrap gap-7 px-4 pt-2 pb-5">
@@ -33,6 +41,14 @@ export function LogPanel({ s, progress, edit, show }: Props) {
           className="h-[227px] w-[180px] rounded bg-surface object-contain"
           loading="lazy"
         />
+        {kinds.map((kind) => (
+          <KillField
+            key={kind}
+            kind={kind}
+            value={killsOf(kind)}
+            save={edit && ((value) => edit({ logId: s.log.id, kind, value }))}
+          />
+        ))}
         {s.log.title && <span className="text-muted text-xs">Log title: {s.log.title}</span>}
         <a
           href={`https://runescape.wiki/w/${encodeURIComponent(s.log.page.replaceAll(' ', '_'))}`}
@@ -50,14 +66,17 @@ export function LogPanel({ s, progress, edit, show }: Props) {
               Missing drops{' '}
               <span className="font-normal text-muted">
                 {missing.length} of {entries.length}
+                {totalKills > 0 && `, chance by now at ${totalKills.toLocaleString()} kills`}
               </span>
             </h3>
             <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-1.5">
               {missing.map((e) => (
-                <Drop key={e.itemId} {...e} count={0} edit={edit} />
+                <Drop key={e.itemId} {...e} count={0} kills={totalKills} edit={edit} />
               ))}
               {showObtained &&
-                got.map((e) => <Drop key={e.itemId} {...e} count={progress.items[e.itemId] ?? 0} edit={edit} />)}
+                got.map((e) => (
+                  <Drop key={e.itemId} {...e} count={progress.items[e.itemId] ?? 0} kills={0} edit={edit} />
+                ))}
             </div>
             {got.length > 0 && (
               <button
@@ -116,19 +135,25 @@ type DropProps = {
   rarity: string
   item: ReturnType<typeof itemsById.get>
   count: number
+  /** Kills so far; above 0 adds the chance of having had the drop by now. */
+  kills: number
   edit?: (edit: Edit) => void
 }
 
 const step = 'size-7 cursor-pointer rounded border border-line2 bg-bg font-bold text-text'
 
 /** A drop tile. Missing tiles are dashed; obtained tiles are solid with a check and the count. */
-function Drop({ itemId, rarity, item, count, edit }: DropProps) {
+function Drop({ itemId, rarity, item, count, kills, edit }: DropProps) {
+  const chance = kills > 0 ? chanceByNow(rarity, kills) : null
   const body = (
     <>
       {item && <img src={imageUrl(item)} alt="" className="size-7 object-contain" loading="lazy" />}
       <span className="min-w-0 flex-auto">
         <span className="block text-[13px]">{item?.name ?? itemId}</span>
-        <span className="block text-muted text-xs">{rarity}</span>
+        <span className="block text-muted text-xs">
+          {rarity}
+          {chance !== null && `, ${Math.round(chance * 100)}% by now`}
+        </span>
       </span>
       {item?.pet && <span className="font-bold text-[11px] text-muted">Pet</span>}
     </>
@@ -211,5 +236,48 @@ function TaskRow({ task, done, edit }: { task: Task; done: boolean; edit?: (edit
       {text}
       {points}
     </div>
+  )
+}
+
+/** A kill count. The owner types it or adds one; visitors see the number. Saves when the field loses focus. */
+function KillField({ kind, value, save }: { kind: KillKind; value: number; save?: (value: number) => void }) {
+  const [text, setText] = useState(String(value))
+  useEffect(() => setText(String(value)), [value])
+  if (!save)
+    return (
+      <span className="text-[13px]">
+        <span className="text-muted">{KILL_LABELS[kind]}</span> <strong>{value.toLocaleString()}</strong>
+      </span>
+    )
+  const commit = () => {
+    const next = Math.max(0, Math.min(100_000_000, Math.trunc(Number(text) || 0)))
+    if (next !== value) save(next)
+    else setText(String(value))
+  }
+  return (
+    <label className="flex flex-col gap-1.5 font-semibold text-[13px]">
+      {KILL_LABELS[kind]}
+      <span className="flex gap-1.5">
+        <input
+          type="number"
+          min={0}
+          value={text}
+          className="w-[90px] rounded border border-line2 bg-surface px-2.5 py-2"
+          onChange={(e) => setText(e.target.value)}
+          onBlur={commit}
+          onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+        />
+        {kind !== 'enrage' && (
+          <button
+            type="button"
+            aria-label={`Add one to ${KILL_LABELS[kind].toLowerCase()}`}
+            className="min-h-[38px] min-w-11 cursor-pointer rounded border-0 bg-gold font-extrabold text-on-gold"
+            onClick={() => save(value + 1)}
+          >
+            +1
+          </button>
+        )}
+      </span>
+    </label>
   )
 }

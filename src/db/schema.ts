@@ -1,5 +1,6 @@
 import { sql } from 'drizzle-orm'
 import { integer, primaryKey, sqliteTable, text } from 'drizzle-orm/sqlite-core'
+import { KILL_KINDS } from '../progress/kills.ts'
 import { user } from './auth-schema.ts'
 
 export * from './auth-schema.ts'
@@ -43,4 +44,18 @@ export const taskProgress = sqliteTable(
     completedAt: integer('completed_at', { mode: 'timestamp_ms' }).default(now).notNull(),
   },
   (t) => [primaryKey({ columns: [t.characterId, t.taskId] })],
+)
+
+/** Kill counts typed in by the player, per boss log and kind (see KILL_KINDS). */
+export const killCount = sqliteTable(
+  'kill_count',
+  {
+    characterId: text('character_id')
+      .notNull()
+      .references(() => character.id, { onDelete: 'cascade' }),
+    logId: text('log_id').notNull(),
+    kind: text('kind', { enum: KILL_KINDS }).notNull(),
+    value: integer('value').notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.characterId, t.logId, t.kind] })],
 )

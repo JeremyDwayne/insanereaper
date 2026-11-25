@@ -207,7 +207,13 @@ function Profile() {
             return open ? (
               <div key={s.log.id} id={`log-${s.log.id}`} className="my-1.5 rounded border-2 border-gold-text">
                 {line}
-                <LogPanel s={s} progress={progress} edit={data.owned ? edit.mutate : undefined} show={show ?? 'all'} />
+                <LogPanel
+                  s={s}
+                  progress={progress}
+                  kills={data.kills}
+                  edit={data.owned ? edit.mutate : undefined}
+                  show={show ?? 'all'}
+                />
               </div>
             ) : (
               <Fragment key={s.log.id}>{line}</Fragment>

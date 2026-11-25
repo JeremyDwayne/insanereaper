@@ -3,9 +3,10 @@ import { setResponseStatus } from '@tanstack/react-start/server'
 import { type } from 'arktype'
 import { and, eq } from 'drizzle-orm'
 import { currentUser } from '#/auth/user.server.ts'
-import { itemsById, tasksById } from '#/catalogue/index.ts'
+import { itemsById, logsById, tasksById } from '#/catalogue/index.ts'
 import { db } from '#/db/client.ts'
-import { character, itemProgress, taskProgress } from '#/db/schema.ts'
+import { character, itemProgress, killCount, taskProgress } from '#/db/schema.ts'
+import { KILL_KINDS } from '#/progress/kills.ts'
 
 /** True when the signed-in account owns the character; sets 403 otherwise. */
 async function ownsCharacter(characterId: string): Promise<boolean> {
@@ -40,5 +41,27 @@ export const setTaskDone = createServerFn({ method: 'POST' })
         .delete(taskProgress)
         .where(and(eq(taskProgress.characterId, data.characterId), eq(taskProgress.taskId, data.taskId)))
     }
+    return { ok: true }
+  })
+
+/** Sets a typed-in kill count, such as hard mode kills or highest enrage, for an owned character. */
+export const setKillCount = createServerFn({ method: 'POST' })
+  .validator(
+    type({
+      characterId: 'string',
+      logId: 'string',
+      kind: type.enumerated(...KILL_KINDS),
+      value: '0 <= number.integer <= 100000000',
+    }),
+  )
+  .handler(async ({ data }) => {
+    if (!logsById.has(data.logId) || !(await ownsCharacter(data.characterId))) return { ok: false }
+    await db
+      .insert(killCount)
+      .values(data)
+      .onConflictDoUpdate({
+        target: [killCount.characterId, killCount.logId, killCount.kind],
+        set: { value: data.value },
+      })
     return { ok: true }
   })
