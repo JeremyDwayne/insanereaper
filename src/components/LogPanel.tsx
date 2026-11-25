@@ -197,7 +197,7 @@ function TaskRow({ task, done, edit }: { task: Task; done: boolean; edit?: (edit
       <input
         type="checkbox"
         checked={done}
-        className="mt-0.5 size-[18px] accent-gold"
+        className="mt-0.5 size-[18px] flex-none accent-gold"
         onChange={(e) => edit({ taskId: task.id, done: e.target.checked })}
       />
       {text}
