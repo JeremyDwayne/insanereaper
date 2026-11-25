@@ -13,13 +13,16 @@ import { downloadXlsx } from '#/export/xlsx.ts'
 import { characterQuery, useEdit } from '#/progress/queries.ts'
 import { type BossSummary, summarize } from '#/progress/summary.ts'
 
+const ORDERS = ['log', 'closest', 'points'] as const
+const isOrder = (v: string): v is (typeof ORDERS)[number] => ORDERS.some((o) => o === v)
+
 const ProfileSearch = type({
   'boss?': 'string',
   /** Also list logs with nothing left. */
   'all?': 'boolean',
   'show?': "'drops' | 'tasks'",
-  /** Row order; the game's combat achievement list when absent. */
-  'sort?': "'log' | 'closest' | 'points'",
+  /** Row order; the game's combat achievement list when absent or unknown, such as an old link's value. */
+  'sort?': type('string').pipe((v) => (isOrder(v) ? v : undefined)),
 })
 
 export const Route = createFileRoute('/$character')({
