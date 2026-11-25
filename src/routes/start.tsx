@@ -23,6 +23,7 @@ export const Route = createFileRoute('/start')({
 const panel = 'mx-auto flex max-w-[520px] flex-col gap-4 rounded border bg-surface p-7'
 const field = 'rounded border border-line2 bg-bg px-3 py-2.5'
 const primary = 'min-h-11 cursor-pointer rounded border-0 bg-gold font-bold text-on-gold disabled:opacity-60'
+const secondary = 'min-h-11 cursor-pointer rounded border border-line2 bg-transparent font-bold'
 
 function Start() {
   const { signedIn } = Route.useLoaderData()
@@ -37,11 +38,15 @@ function Start() {
   )
 }
 
-/** Step 1. Emails a sign-in link, then waits: when the link opens in this browser, this tab moves on by itself. */
+/**
+ * Step 1. Emails a 6-digit code and a link. Typing the code here signs in this tab; opening the link
+ * in the same browser signs it in too, and this tab moves on by itself.
+ */
 function SignInForm() {
   const router = useRouter()
   const [email, setEmail] = useState('')
   const [sent, setSent] = useState('')
+  const [code, setCode] = useState('')
   const [error, setError] = useState('')
 
   useEffect(() => {
@@ -52,45 +57,71 @@ function SignInForm() {
   }, [sent, router])
 
   return (
-    <form
-      className={`${panel} border-line`}
-      onSubmit={async (e) => {
-        e.preventDefault()
-        setError('')
-        const { error } = await authClient.signIn.magicLink({ email, callbackURL: '/signed-in' })
-        if (error)
-          setError(
-            error.status === 429
-              ? 'Too many links asked for. Try again in 10 minutes.'
-              : 'That did not send. Try again.',
-          )
-        else setSent(email)
-      }}
-    >
+    <div className={`${panel} border-line`}>
       <div className="font-semibold text-muted text-xs">Step 1 of 2</div>
       <h1 className="m-0 font-extrabold text-[26px]">Sign in</h1>
-      <p className="m-0 text-muted">We email you a link. No password.</p>
-      <label className="flex flex-col gap-1.5 font-semibold">
-        Email
-        <input type="email" required value={email} className={field} onChange={(e) => setEmail(e.target.value)} />
-      </label>
-      <button type="submit" className={primary}>
-        Email me a sign-in link
-      </button>
+      <p className="m-0 text-muted">We email you a code and a link. No password.</p>
+      <form
+        className="flex flex-col gap-4"
+        onSubmit={async (e) => {
+          e.preventDefault()
+          setError('')
+          const { error } = await authClient.emailOtp.sendVerificationOtp({ email, type: 'sign-in' })
+          if (error)
+            setError(
+              error.status === 429
+                ? 'Too many codes asked for. Try again in 10 minutes.'
+                : 'That did not send. Try again.',
+            )
+          else setSent(email)
+        }}
+      >
+        <label className="flex flex-col gap-1.5 font-semibold">
+          Email
+          <input type="email" required value={email} className={field} onChange={(e) => setEmail(e.target.value)} />
+        </label>
+        <button type="submit" className={sent ? secondary : primary}>
+          {sent ? 'Send a new code' : 'Email me a code'}
+        </button>
+      </form>
       {sent && (
-        <p
-          role="status"
-          className="m-0 flex items-start gap-2.5 rounded border border-line2 border-dashed p-3 text-muted"
+        <form
+          className="flex flex-col gap-4"
+          onSubmit={async (e) => {
+            e.preventDefault()
+            setError('')
+            const { error } = await authClient.signIn.emailOtp({ email: sent, otp: code.trim() })
+            if (error) setError('That code did not work. Check it, or send a new one.')
+            else router.invalidate()
+          }}
         >
-          <MailIcon size={18} className="mt-px flex-none text-text" />
-          <span>
-            Check {sent} for a link. It expires in 15 minutes. Keep this tab open: it carries on here once you open the
-            link in this browser.
-          </span>
-        </p>
+          <p
+            role="status"
+            className="m-0 flex items-start gap-2.5 rounded border border-line2 border-dashed p-3 text-muted"
+          >
+            <MailIcon size={18} className="mt-px flex-none text-text" />
+            <span>Check {sent}. Type the code here, or open the link in the email. Both expire in 15 minutes.</span>
+          </p>
+          <label className="flex flex-col gap-1.5 font-semibold">
+            Code
+            <input
+              required
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              pattern="[0-9]{6}"
+              maxLength={6}
+              value={code}
+              className={`${field} font-bold text-xl tracking-[0.3em]`}
+              onChange={(e) => setCode(e.target.value)}
+            />
+          </label>
+          <button type="submit" className={primary}>
+            Sign in
+          </button>
+        </form>
       )}
       {error && <p className="m-0 font-semibold">{error}</p>}
-    </form>
+    </div>
   )
 }
 

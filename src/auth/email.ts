@@ -1,9 +1,14 @@
 import { env } from 'cloudflare:workers'
 
-/** Sends a sign-in link through Postmark. Without a token (local dev) it logs the link instead. */
-export async function sendSignInLink(to: string, url: string): Promise<void> {
+/** Link in the sign-in email. It signs in with the same code, so either one works. */
+export const signInLink = (email: string, code: string) =>
+  `${env.BETTER_AUTH_URL}/signed-in?${new URLSearchParams({ email, code })}`
+
+/** Emails a sign-in code and link through Postmark. Without a token (local dev) it logs them instead. */
+export async function sendSignInEmail(to: string, code: string): Promise<void> {
+  const url = signInLink(to, code)
   if (!env.POSTMARK_TOKEN) {
-    console.log(`Sign-in link for ${to}: ${url}`)
+    console.log(`Sign-in code for ${to}: ${code} ${url}`)
     return
   }
   const res = await fetch('https://api.postmarkapp.com/email', {
@@ -16,9 +21,9 @@ export async function sendSignInLink(to: string, url: string): Promise<void> {
     body: JSON.stringify({
       From: env.EMAIL_FROM,
       To: to,
-      Subject: 'Your Insane Reaper sign-in link',
-      TextBody: `Sign in to Insane Reaper: ${url}\n\nThe link expires in 15 minutes. If you did not ask for it, ignore this email.`,
-      HtmlBody: `<p><a href="${url}">Sign in to Insane Reaper</a></p><p>The link expires in 15 minutes. If you did not ask for it, ignore this email.</p>`,
+      Subject: `${code} is your Insane Reaper sign-in code`,
+      TextBody: `Your sign-in code is ${code}\n\nOr sign in with this link: ${url}\n\nBoth expire in 15 minutes. If you did not ask for them, ignore this email.`,
+      HtmlBody: `<p>Your sign-in code is</p><p style="font-size:28px;font-weight:700;letter-spacing:4px">${code}</p><p>Or <a href="${url}">sign in with this link</a>.</p><p>Both expire in 15 minutes. If you did not ask for them, ignore this email.</p>`,
       MessageStream: 'outbound',
     }),
   })

@@ -1,12 +1,12 @@
 import { env } from 'cloudflare:workers'
 import { betterAuth } from 'better-auth'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
-import { magicLink } from 'better-auth/plugins'
+import { emailOTP } from 'better-auth/plugins'
 import { tanstackStartCookies } from 'better-auth/tanstack-start'
 import { db } from '#/db/client.ts'
 import * as schema from '#/db/schema.ts'
-import { sendSignInLink } from './email.ts'
-import { authOptions, MAGIC_LINK_SECONDS } from './options.ts'
+import { sendSignInEmail } from './email.ts'
+import { authOptions, SIGN_IN_SECONDS } from './options.ts'
 
 export const auth = betterAuth({
   ...authOptions,
@@ -14,7 +14,11 @@ export const auth = betterAuth({
   secret: env.BETTER_AUTH_SECRET,
   database: drizzleAdapter(db, { provider: 'sqlite', schema }),
   plugins: [
-    magicLink({ expiresIn: MAGIC_LINK_SECONDS, sendMagicLink: ({ email, url }) => sendSignInLink(email, url) }),
+    emailOTP({
+      expiresIn: SIGN_IN_SECONDS,
+      storeOTP: 'hashed',
+      sendVerificationOTP: ({ email, otp }) => sendSignInEmail(email, otp),
+    }),
     tanstackStartCookies(),
   ],
 })

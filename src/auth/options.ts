@@ -6,10 +6,13 @@ export const authOptions = {
   rateLimit: {
     enabled: true,
     storage: 'database',
-    customRules: { '/sign-in/magic-link': { window: 600, max: 5 } },
+    customRules: {
+      '/email-otp/send-verification-otp': { window: 600, max: 5 },
+      '/sign-in/email-otp': { window: 600, max: 10 },
+    },
   },
   advanced: { ipAddress: { ipAddressHeaders: ['cf-connecting-ip'] } },
 } satisfies BetterAuthOptions
 
-/** Sign-in links expire after 15 minutes. */
-export const MAGIC_LINK_SECONDS = 15 * 60
+/** Sign-in codes and links expire after 15 minutes. */
+export const SIGN_IN_SECONDS = 15 * 60
