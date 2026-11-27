@@ -1,4 +1,4 @@
-import type { Edit } from './queries.ts'
+import type { Edit } from './edit.ts'
 
 const VORAGO_ROTATIONS = ['Ceiling Collapse', 'Scopulus', 'Vitalis', 'Green Bomb', 'Teamsplit', 'The End']
 

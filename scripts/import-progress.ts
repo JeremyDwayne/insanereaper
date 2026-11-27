@@ -1,4 +1,4 @@
-// Copies a progress export into a claimed character's progress. Never lowers a drop count.
+// Copies a progress export into a character's progress, claimed or tracked by a group. Never lowers a drop count.
 // Usage: pnpm import:progress <export.json> <character name> [--remote]
 import { execFileSync } from 'node:child_process'
 import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
@@ -23,7 +23,7 @@ const match = matchExport(catalogue, ProgressExport.assert(JSON.parse(readFileSy
 const sql = (s: string) => `'${s.replaceAll("'", "''")}'`
 const character = `(SELECT id FROM character WHERE name_key = ${sql(nameKey(name))})`
 const [{ results }] = JSON.parse(d1('--json', '--command', `SELECT ${character} AS id`))
-if (!results[0]?.id) throw new Error(`${name} is not claimed yet. Sign in and claim it first.`)
+if (!results[0]?.id) throw new Error(`No character is named ${name} yet. Claim it or add it to a group first.`)
 
 const statements = [
   ...Object.entries(match.items).map(

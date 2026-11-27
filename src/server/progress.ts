@@ -1,84 +1,28 @@
 import { createServerFn } from '@tanstack/react-start'
 import { setResponseStatus } from '@tanstack/react-start/server'
 import { type } from 'arktype'
-import { and, eq } from 'drizzle-orm'
 import { currentUser } from '#/auth/user.server.ts'
-import { bossesById, itemsById, tasksById } from '#/catalogue/index.ts'
 import { db } from '#/db/client.ts'
-import { character, itemProgress, killCount, taskPart, taskProgress } from '#/db/schema.ts'
-import { KILL_KINDS } from '#/progress/kills.ts'
-import { TASK_PARTS } from '#/progress/parts.ts'
+import { Edit } from '#/progress/edit.ts'
+import { resolveWaiting, writeEdit } from '#/progress/write.ts'
 
-/** True when the signed-in account owns the character; sets 403 otherwise. */
-async function ownsCharacter(characterId: string): Promise<boolean> {
-  const user = await currentUser()
-  const [row] = await db.select({ userId: character.userId }).from(character).where(eq(character.id, characterId))
-  if (user && row?.userId === user.id) return true
-  setResponseStatus(403)
-  return false
-}
-
-/** Sets a drop's count for an owned character. A count of 0 means not obtained. */
-export const setItemCount = createServerFn({ method: 'POST' })
-  .validator(type({ characterId: 'string', itemId: 'string', count: '0 <= number.integer <= 65535' }))
+/** Saves a progress edit, or holds it for the player when a group leader edits a claimed character (see writeEdit). */
+export const saveEdit = createServerFn({ method: 'POST' })
+  .validator(type({ characterId: 'string', edit: Edit }))
   .handler(async ({ data }) => {
-    if (!itemsById.has(data.itemId) || !(await ownsCharacter(data.characterId))) return { ok: false }
-    await db
-      .insert(itemProgress)
-      .values(data)
-      .onConflictDoUpdate({ target: [itemProgress.characterId, itemProgress.itemId], set: { count: data.count } })
-    return { ok: true }
+    const user = await currentUser()
+    const result = await writeEdit(db, user?.id, data.characterId, data.edit)
+    if (result === 'refused') setResponseStatus(403)
+    return result
   })
 
-/** Marks a Combat Mastery task done or not done for an owned character. */
-export const setTaskDone = createServerFn({ method: 'POST' })
-  .validator(type({ characterId: 'string', taskId: 'string', done: 'boolean' }))
+/** Confirms or denies the owner's waiting edits, the listed targets or all of them (see resolveWaiting). */
+export const resolveEdits = createServerFn({ method: 'POST' })
+  // Confirm all and Deny all send targets as undefined, which an optional key alone refuses.
+  .validator(type({ characterId: 'string', confirm: 'boolean', 'targets?': 'string[] | undefined' }))
   .handler(async ({ data }) => {
-    if (!tasksById.has(data.taskId) || !(await ownsCharacter(data.characterId))) return { ok: false }
-    if (data.done) {
-      await db.insert(taskProgress).values({ characterId: data.characterId, taskId: data.taskId }).onConflictDoNothing()
-    } else {
-      await db
-        .delete(taskProgress)
-        .where(and(eq(taskProgress.characterId, data.characterId), eq(taskProgress.taskId, data.taskId)))
-    }
-    return { ok: true }
-  })
-
-/** Ticks or unticks one part of a multi-part task (see TASK_PARTS) for an owned character. */
-export const setPartDone = createServerFn({ method: 'POST' })
-  .validator(type({ characterId: 'string', taskId: 'string', part: 'string', done: 'boolean' }))
-  .handler(async ({ data }) => {
-    const { characterId, taskId, part } = data
-    if (!TASK_PARTS[taskId]?.includes(part) || !(await ownsCharacter(characterId))) return { ok: false }
-    if (data.done) {
-      await db.insert(taskPart).values({ characterId, taskId, part }).onConflictDoNothing()
-    } else {
-      await db
-        .delete(taskPart)
-        .where(and(eq(taskPart.characterId, characterId), eq(taskPart.taskId, taskId), eq(taskPart.part, part)))
-    }
-    return { ok: true }
-  })
-
-/** Sets a typed-in kill count, such as hard mode kills or highest enrage, for an owned character. */
-export const setKillCount = createServerFn({ method: 'POST' })
-  .validator(
-    type({
-      characterId: 'string',
-      bossId: 'string',
-      kind: type.enumerated(...KILL_KINDS),
-      value: '0 <= number.integer <= 100000000',
-    }),
-  )
-  .handler(async ({ data }) => {
-    if (!bossesById.has(data.bossId) || !(await ownsCharacter(data.characterId))) return { ok: false }
-    await db
-      .insert(killCount)
-      .values(data)
-      .onConflictDoUpdate({
-        target: [killCount.characterId, killCount.bossId, killCount.kind],
-        set: { value: data.value },
-      })
-    return { ok: true }
+    const user = await currentUser()
+    const ok = await resolveWaiting(db, user?.id, data.characterId, data.confirm, data.targets)
+    if (!ok) setResponseStatus(403)
+    return ok
   })

@@ -1,7 +1,7 @@
 import { queryOptions, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getCharacter } from '#/server/characters.ts'
-import { setItemCount, setKillCount, setPartDone, setTaskDone } from '#/server/progress.ts'
-import type { KillKind } from './kills.ts'
+import { resolveEdits, saveEdit } from '#/server/progress.ts'
+import { applyEdit, applyWaiting, type Edit, editTarget, unchanged } from './edit.ts'
 
 /** A character's profile and progress, fetched once per session and then edited in place. */
 export const characterQuery = (slug: string) =>
@@ -9,40 +9,22 @@ export const characterQuery = (slug: string) =>
 
 export type CharacterData = NonNullable<Awaited<ReturnType<typeof getCharacter>>>
 
-export type Edit =
-  | { itemId: string; count: number }
-  | { taskId: string; done: boolean }
-  | { taskId: string; part: string; done: boolean }
-  | { bossId: string; kind: KillKind; value: number }
+/** True when the viewer's edits wait for the player: a group leader looking at a claimed character. */
+export const holdsEdits = (c: CharacterData) => c.role === 'leader' && c.claimed
 
-function apply(c: CharacterData, edit: Edit): CharacterData {
-  if ('itemId' in edit) return { ...c, items: { ...c.items, [edit.itemId]: edit.count } }
-  if ('bossId' in edit) return { ...c, kills: { ...c.kills, [`${edit.bossId}:${edit.kind}`]: edit.value } }
-  if ('part' in edit) {
-    const ticked = (c.parts[edit.taskId] ?? []).filter((p) => p !== edit.part)
-    return { ...c, parts: { ...c.parts, [edit.taskId]: edit.done ? [...ticked, edit.part] : ticked } }
-  }
-  const tasks = c.tasks.filter((id) => id !== edit.taskId)
-  return { ...c, tasks: edit.done ? [...tasks, edit.taskId] : tasks }
+/**
+ * A character with an edit laid in as the server stores it: in the waiting list when held (see holdsEdits),
+ * otherwise applied, replacing any waiting edit to the same thing.
+ */
+function stage(c: CharacterData, edit: Edit): CharacterData {
+  const target = editTarget(edit)
+  const waiting = c.waiting.filter((w) => w.target !== target)
+  if (!holdsEdits(c)) return { ...applyEdit(c, edit), waiting }
+  if (unchanged(c, edit)) return { ...c, waiting }
+  return { ...c, waiting: [...waiting, { target, edit, group: c.ledGroup ?? '' }] }
 }
 
-/** The edit that puts back what `edit` changes. */
-function undoOf(c: CharacterData, edit: Edit): Edit {
-  if ('itemId' in edit) return { ...edit, count: c.items[edit.itemId] ?? 0 }
-  if ('bossId' in edit) return { ...edit, value: c.kills[`${edit.bossId}:${edit.kind}`] ?? 0 }
-  if ('part' in edit) return { ...edit, done: c.parts[edit.taskId]?.includes(edit.part) ?? false }
-  return { ...edit, done: !edit.done }
-}
-
-/** Sends an edit to the server function that stores its kind. */
-function save(data: Edit & { characterId: string }) {
-  if ('itemId' in data) return setItemCount({ data })
-  if ('bossId' in data) return setKillCount({ data })
-  if ('part' in data) return setPartDone({ data })
-  return setTaskDone({ data })
-}
-
-/** Saves a drop count, achievement or part tick, or kill count. Shows it at once and reverts it if the server refuses. */
+/** Saves a drop count, achievement tick or kill count. Shows it at once and reloads the character if refused. */
 export function useEdit(slug: string) {
   const queryClient = useQueryClient()
   const { queryKey } = characterQuery(slug)
@@ -51,18 +33,37 @@ export function useEdit(slug: string) {
     scope: { id: slug },
     mutationFn: async (edit: Edit) => {
       const characterId = queryClient.getQueryData(queryKey)?.id ?? ''
-      const result = await save({ characterId, ...edit })
-      if (!result.ok) throw new Error('Not saved')
+      if ((await saveEdit({ data: { characterId, edit } })) === 'refused') throw new Error('Not saved')
     },
     onMutate: (edit) => {
       const c = queryClient.getQueryData(queryKey)
-      if (!c) return
-      queryClient.setQueryData(queryKey, apply(c, edit))
-      return { undo: undoOf(c, edit) }
+      if (c) queryClient.setQueryData(queryKey, stage(c, edit))
     },
-    onError: (_error, _edit, context) => {
+    // Group pages show this character's progress, so they load again on the next visit.
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['group'] }),
+    onError: () => queryClient.invalidateQueries({ queryKey }),
+  })
+}
+
+/** Confirms or denies the owner's waiting edits: those with the given targets, or all of them. */
+export function useResolve(slug: string) {
+  const queryClient = useQueryClient()
+  const { queryKey } = characterQuery(slug)
+  return useMutation({
+    scope: { id: slug },
+    mutationFn: async ({ confirm, targets }: { confirm: boolean; targets?: string[] }) => {
+      const characterId = queryClient.getQueryData(queryKey)?.id ?? ''
+      if (!(await resolveEdits({ data: { characterId, confirm, targets } }))) throw new Error('Not saved')
+    },
+    onSuccess: (_result, { confirm, targets }) => {
       const c = queryClient.getQueryData(queryKey)
-      if (c && context) queryClient.setQueryData(queryKey, apply(c, context.undo))
+      if (!c) return
+      const picked = c.waiting.filter((w) => !targets || targets.includes(w.target))
+      const rest = c.waiting.filter((w) => !picked.includes(w))
+      const next: CharacterData = { ...(confirm ? applyWaiting(c, picked) : c), waiting: rest }
+      queryClient.setQueryData(queryKey, next)
+      queryClient.invalidateQueries({ queryKey: ['group'] })
     },
+    onError: () => queryClient.invalidateQueries({ queryKey }),
   })
 }

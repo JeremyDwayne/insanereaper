@@ -1,4 +1,6 @@
 import { Link } from '@tanstack/react-router'
+import { useState } from 'react'
+import { LinkIcon } from './icons.tsx'
 import { ThemeToggle } from './ThemeToggle.tsx'
 
 /** Site header. `children` sit between the logo and the right-hand controls, such as search. */
@@ -42,5 +44,22 @@ export function HeaderButton(props: React.ButtonHTMLAttributes<HTMLButtonElement
       {...props}
       className="inline-flex min-h-10 cursor-pointer items-center gap-2 rounded border border-line2 px-3 font-semibold"
     />
+  )
+}
+
+/** Copies the page's public URL and says so for two seconds. */
+export function CopyLink({ path, label }: { path: string; label: string }) {
+  const [copied, setCopied] = useState(false)
+  return (
+    <HeaderButton
+      onClick={async () => {
+        await navigator.clipboard.writeText(`${location.origin}${path}`)
+        setCopied(true)
+        setTimeout(() => setCopied(false), 2000)
+      }}
+    >
+      <LinkIcon />
+      {copied ? 'Copied' : label}
+    </HeaderButton>
   )
 }
