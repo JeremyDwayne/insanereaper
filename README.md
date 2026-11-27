@@ -30,6 +30,8 @@ Cloudflare Workers Builds deploys every push to `main`. The Worker's Settings, B
 - Build command: `pnpm typecheck && pnpm lint && pnpm test && pnpm build`
 - Deploy command: `pnpm wrangler d1 migrations apply insanereaper --remote && pnpm wrangler deploy`
 
+Boss links unfurl in chat apps with an image drawn on request at `/og/<name>/<boss>`. A render takes about 70 ms of CPU, so the images need Workers Paid; on the Free plan's 10 ms limit, links still unfurl with text only.
+
 Secrets are set once on the Worker with `pnpm wrangler secret put` for `BETTER_AUTH_SECRET`, `POSTMARK_TOKEN` and `TURNSTILE_SECRET_KEY`. Deploys keep them.
 
 Sign-in is behind [Cloudflare Turnstile](https://developers.cloudflare.com/turnstile/). The widget's site key is in `src/components/Turnstile.tsx` and its secret key is `TURNSTILE_SECRET_KEY`. Local dev uses Cloudflare's test keys, which always pass.

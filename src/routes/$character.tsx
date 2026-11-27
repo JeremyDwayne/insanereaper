@@ -10,6 +10,7 @@ import { DownloadIcon, LinkIcon } from '#/components/icons.tsx'
 import { Meter } from '#/components/Meter.tsx'
 import { Search } from '#/components/Search.tsx'
 import { downloadXlsx } from '#/export/xlsx.ts'
+import { linkPreview } from '#/progress/embed.ts'
 import { characterQuery, useEdit } from '#/progress/queries.ts'
 import { type BossSummary, summarize } from '#/progress/summary.ts'
 
@@ -21,19 +22,47 @@ const ProfileSearch = type({
   /** Also list logs with nothing left. */
   'all?': 'boolean',
   'show?': "'drops' | 'tasks'",
+  /** Achievements as tiles in the open boss panel. */
+  'tiles?': 'boolean',
   /** Row order; the game's combat achievement list when absent or unknown, such as an old link's value. */
   'sort?': type('string').pipe((v) => (isOrder(v) ? v : undefined)),
 })
 
+/** Chat apps need absolute image URLs. */
+const SITE = 'https://insanereaper.com'
+
 export const Route = createFileRoute('/$character')({
   validateSearch: ProfileSearch,
-  loader: async ({ context, params }) => {
+  loaderDeps: ({ search }) => ({ boss: search.boss }),
+  loader: async ({ context, params, deps }) => {
     const c = await context.queryClient.ensureQueryData(characterQuery(params.character))
     if (!c) throw notFound()
-    if (c.slug !== params.character) throw redirect({ to: '/$character', params: { character: c.slug } })
-    return { name: c.name }
+    if (c.slug !== params.character) {
+      throw redirect({ to: '/$character', params: { character: c.slug }, search: true })
+    }
+    return { name: c.name, preview: linkPreview(catalogue, { items: c.items, tasks: new Set(c.tasks) }, c, deps.boss) }
   },
-  head: ({ loaderData }) => ({ meta: [{ title: loaderData ? `${loaderData.name}, Insane Reaper` : 'Insane Reaper' }] }),
+  head: ({ loaderData }) => {
+    if (!loaderData) return { meta: [{ title: 'Insane Reaper' }] }
+    const { title, description, image } = loaderData.preview
+    return {
+      meta: [
+        { title: `${loaderData.name}, Insane Reaper` },
+        { name: 'description', content: description },
+        { property: 'og:site_name', content: 'Insane Reaper' },
+        { property: 'og:title', content: title },
+        { property: 'og:description', content: description },
+        ...(image
+          ? [
+              { property: 'og:image', content: `${SITE}${image}` },
+              { property: 'og:image:width', content: '1200' },
+              { property: 'og:image:height', content: '630' },
+              { name: 'twitter:card', content: 'summary_large_image' },
+            ]
+          : [{ name: 'twitter:card', content: 'summary' }]),
+      ],
+    }
+  },
   component: Profile,
   notFoundComponent: () => (
     <main className="mx-auto max-w-3xl p-8">
@@ -69,7 +98,7 @@ const sorts = {
 
 function Profile() {
   const { character } = Route.useParams()
-  const { boss, all = false, show, sort } = Route.useSearch()
+  const { boss, all = false, show, sort, tiles = false } = Route.useSearch()
   const navigate = Route.useNavigate()
   const { data } = useSuspenseQuery(characterQuery(character))
   const edit = useEdit(character)
@@ -220,6 +249,8 @@ function Profile() {
                   kills={data.kills}
                   edit={data.owned ? edit.mutate : undefined}
                   show={show ?? 'all'}
+                  tiles={tiles}
+                  setTiles={(on) => setSearch({ tiles: on || undefined })}
                 />
               </div>
             ) : (

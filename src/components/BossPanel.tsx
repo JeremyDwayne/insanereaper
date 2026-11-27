@@ -18,10 +18,13 @@ type Props = {
   /** Present only for the character's own account. */
   edit?: (edit: Edit) => void
   show: 'all' | 'drops' | 'tasks'
+  /** Achievements as compact tiles, without the boss art column, so more fit on screen. */
+  tiles: boolean
+  setTiles: (tiles: boolean) => void
 }
 
 /** An expanded boss: art and kill counts, every drop in its log with missing ones first, then achievements left by tier. */
-export function BossPanel({ s, progress, kills, edit, show }: Props) {
+export function BossPanel({ s, progress, kills, edit, show, tiles, setTiles }: Props) {
   const [showDone, setShowDone] = useState(false)
   const entries = s.log.entries.map((e) => ({ ...e, item: itemsById.get(e.itemId) }))
   const missing = entries.filter((e) => !obtained(progress, e.itemId))
@@ -33,7 +36,7 @@ export function BossPanel({ s, progress, kills, edit, show }: Props) {
 
   return (
     <div className="flex flex-wrap gap-7 px-4 pt-2 pb-5">
-      <div className="flex flex-[0_1_200px] flex-col gap-2">
+      <div className={`flex-[0_1_200px] flex-col gap-2 ${tiles ? 'hidden' : 'flex'}`}>
         <img
           src={imageUrl(s.boss)}
           alt={s.boss.name}
@@ -80,12 +83,22 @@ export function BossPanel({ s, progress, kills, edit, show }: Props) {
         )}
         {show !== 'drops' && s.tasks.length > 0 && (
           <div>
-            <h3 className="mt-0 mb-2 font-bold text-sm">
-              Achievements left{' '}
-              <span className="font-normal text-muted">
-                {s.tasksLeft} of {s.tasks.length}, {s.pointsLeft} points
+            <div className="mb-2 flex flex-wrap items-center gap-3">
+              <h3 className="m-0 font-bold text-sm">
+                Achievements left{' '}
+                <span className="font-normal text-muted">
+                  {s.tasksLeft} of {s.tasks.length}, {s.pointsLeft} points
+                </span>
+              </h3>
+              <span className="ml-auto flex">
+                <LayoutButton pressed={!tiles} onClick={() => setTiles(false)} className="rounded-l">
+                  List
+                </LayoutButton>
+                <LayoutButton pressed={tiles} onClick={() => setTiles(true)} className="-ml-px rounded-r">
+                  Tiles
+                </LayoutButton>
               </span>
-            </h3>
+            </div>
             <div className="flex flex-col gap-4">
               {tiers.map((t) => (
                 <div key={t.tier}>
@@ -95,11 +108,14 @@ export function BossPanel({ s, progress, kills, edit, show }: Props) {
                       {t.done} of {t.total} done, {t.pointsLeft} points left
                     </span>
                   </div>
-                  {s.tasks
-                    .filter((task) => task.tier === t.tier && (showDone || !progress.tasks.has(task.id)))
-                    .map((task) => (
-                      <TaskRow key={task.id} task={task} done={progress.tasks.has(task.id)} edit={edit} />
-                    ))}
+                  <div className={tiles ? 'mt-1.5 grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-1.5' : ''}>
+                    {s.tasks
+                      .filter((task) => task.tier === t.tier && (showDone || !progress.tasks.has(task.id)))
+                      .map((task) => {
+                        const Task = tiles ? TaskTile : TaskRow
+                        return <Task key={task.id} task={task} done={progress.tasks.has(task.id)} edit={edit} />
+                      })}
+                  </div>
                 </div>
               ))}
             </div>
@@ -243,6 +259,47 @@ function TaskRow({ task, done, edit }: { task: Task; done: boolean; edit?: (edit
       {text}
       {points}
     </div>
+  )
+}
+
+/** An achievement as a tile, outlined like a drop tile: dashed while not done, solid gold once done. Hover shows the description. */
+function TaskTile({ task, done, edit }: { task: Task; done: boolean; edit?: (edit: Edit) => void }) {
+  const box = `flex min-h-14 items-center gap-2.5 rounded bg-surface px-2.5 py-1.5 ${done ? 'border-2 border-gold-text' : 'border border-line2 border-dashed'}`
+  const text = (
+    <span className="min-w-0">
+      <strong className="block text-[13px] leading-tight">{task.name}</strong>
+      <span className="text-muted text-xs">{task.points} pts</span>
+    </span>
+  )
+  return edit ? (
+    <label className={`${box} cursor-pointer`} title={task.description}>
+      <input
+        type="checkbox"
+        checked={done}
+        className="size-[18px] flex-none accent-gold"
+        onChange={(e) => edit({ taskId: task.id, done: e.target.checked })}
+      />
+      {text}
+    </label>
+  ) : (
+    <div className={box} title={task.description}>
+      <Mark done={done} />
+      {text}
+    </div>
+  )
+}
+
+/** One half of the List and Tiles switch. The pressed half is filled gold. */
+function LayoutButton(props: { pressed: boolean; onClick: () => void; className: string; children: string }) {
+  return (
+    <button
+      type="button"
+      aria-pressed={props.pressed}
+      onClick={props.onClick}
+      className={`min-h-10 cursor-pointer border px-3.5 ${props.className} ${props.pressed ? 'border-gold bg-gold font-extrabold text-on-gold' : 'border-line2 bg-surface font-semibold text-text'}`}
+    >
+      {props.children}
+    </button>
   )
 }
 
