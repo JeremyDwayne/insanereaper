@@ -218,6 +218,7 @@ function Profile() {
                   s={s}
                   progress={progress}
                   kills={data.kills}
+                  parts={data.parts}
                   edit={data.owned ? edit.mutate : undefined}
                   show={show ?? 'all'}
                 />
