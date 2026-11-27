@@ -18,7 +18,7 @@ type Props = {
   kills: Record<string, number>
   /** Ticked part names by task id (see TASK_PARTS). */
   parts: Partial<Record<string, string[]>>
-  /** Present only for the character's own account. */
+  /** Present for the character's owner and its group leaders. */
   edit?: (edit: Edit) => void
   show: 'all' | 'drops' | 'tasks'
   /** Achievements as compact tiles, without the boss art column, so more fit on screen. */
@@ -250,7 +250,7 @@ type TaskRowProps = {
   edit?: (edit: Edit) => void
 }
 
-/** One achievement. The owner gets a checkbox; visitors see a read-only mark. Open multi-part tasks show their parts. */
+/** One achievement. Its editors get a checkbox; visitors see a read-only mark. Open multi-part tasks show their parts. */
 function TaskRow({ task, done, ticked, edit }: TaskRowProps) {
   const parts = TASK_PARTS[task.id]
   const text = (
@@ -302,7 +302,7 @@ function TaskRow({ task, done, ticked, edit }: TaskRowProps) {
 type PartsProps = {
   parts: readonly string[]
   ticked: string[]
-  /** Present only for the character's own account. */
+  /** Present for the character's owner and its group leaders. */
   tick?: (part: string, done: boolean) => void
 }
 
@@ -399,7 +399,7 @@ function LayoutButton(props: { pressed: boolean; onClick: () => void; className:
   )
 }
 
-/** A kill count. The owner types it or adds one; visitors see the number. Saves when the field loses focus. */
+/** A kill count. Its editors type it or add one; visitors see the number. Saves when the field loses focus. */
 function KillField({ kind, value, save }: { kind: KillKind; value: number; save?: (value: number) => void }) {
   const [text, setText] = useState(String(value))
   useEffect(() => setText(String(value)), [value])

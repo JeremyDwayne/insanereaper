@@ -9,6 +9,7 @@ import { CheckIcon, InfoIcon, MailIcon } from '#/components/icons.tsx'
 import { Turnstile } from '#/components/Turnstile.tsx'
 import type { Recorded } from '#/groups/groups.ts'
 import { checkName, claimCharacter, getMe } from '#/server/characters.ts'
+import { counted, list } from '#/text.ts'
 
 export const Route = createFileRoute('/start')({
   validateSearch: type({ 'from?': "'email'", 'add?': 'boolean' }),
@@ -252,9 +253,6 @@ function ClaimForm({ fromEmail }: { fromEmail: boolean }) {
     </form>
   )
 }
-
-const counted = (n: number, noun: string) => `${n.toLocaleString()} ${noun}${n === 1 ? '' : 's'}`
-const list = (parts: string[]) => new Intl.ListFormat('en').format(parts)
 
 /** The claim notice for a name that groups track: who tracks it and what they recorded. */
 function recordedText({ groups, drops, tasks, kills }: Recorded) {

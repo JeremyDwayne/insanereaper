@@ -9,10 +9,13 @@ import { Header, HeaderButton } from '#/components/Header.tsx'
 import { DownloadIcon, LinkIcon } from '#/components/icons.tsx'
 import { Meter } from '#/components/Meter.tsx'
 import { Search } from '#/components/Search.tsx'
+import { CharacterNotice, WaitingReview } from '#/components/Waiting.tsx'
 import { downloadXlsx } from '#/export/xlsx.ts'
+import { applyWaiting } from '#/progress/edit.ts'
 import { linkPreview } from '#/progress/embed.ts'
-import { characterQuery, useEdit } from '#/progress/queries.ts'
+import { characterQuery, holdsEdits, useEdit } from '#/progress/queries.ts'
 import { type BossSummary, summarize } from '#/progress/summary.ts'
+import { counted } from '#/text.ts'
 
 const ORDERS = ['log', 'closest', 'points'] as const
 const isOrder = (v: string): v is (typeof ORDERS)[number] => ORDERS.some((o) => o === v)
@@ -102,14 +105,16 @@ function Profile() {
   const navigate = Route.useNavigate()
   const { data } = useSuspenseQuery(characterQuery(character))
   const edit = useEdit(character)
-  const progress = useMemo(() => ({ items: data?.items ?? {}, tasks: new Set(data?.tasks) }), [data])
+  // A leader sees their waiting edits applied; the owner and visitors see the confirmed progress.
+  const tracked = useMemo(() => (data && holdsEdits(data) ? applyWaiting(data, data.waiting) : data), [data])
+  const progress = useMemo(() => ({ items: tracked?.items ?? {}, tasks: new Set(tracked?.tasks) }), [tracked])
   const summary = useMemo(() => summarize(catalogue, progress), [progress])
 
   useEffect(() => {
     if (boss) document.getElementById(`boss-${boss}`)?.scrollIntoView({ block: 'nearest' })
   }, [boss])
 
-  if (!data) return null
+  if (!data || !tracked) return null
   const left = (s: BossSummary) => (show === 'drops' ? !s.complete : show === 'tasks' ? s.tasksLeft > 0 : !s.done)
   const shown = summary.bosses.filter((s) => all || left(s) || s.boss.id === boss)
   const rows = sort ? shown.sort(sorts[sort]) : shown
@@ -139,12 +144,16 @@ function Profile() {
             <span className="font-bold text-[15px]">{data.name}</span>
             <span className="text-[13px] text-muted">Public profile, insanereaper.com/{data.slug}</span>
           </div>
+          <CharacterNotice data={data} />
           <div className="flex flex-wrap items-baseline gap-4">
             <h1 className="m-0 font-extrabold text-[34px]">
               {summary.insaneReaper ? 'The Insane Reaper' : `${dropsLeft.toLocaleString()} drops to the Reaper`}
             </h1>
             <span className="text-muted">
               {summary.drops.got} of {summary.drops.total} drops, {summary.logsComplete} of {catalogue.logs.length} logs
+              {holdsEdits(data) &&
+                data.waiting.length > 0 &&
+                `, with ${counted(data.waiting.length, 'waiting change')}`}
             </span>
           </div>
           <div className="grid grid-cols-[110px_1fr] items-center gap-x-3 gap-y-1.5 text-[13px]">
@@ -166,6 +175,7 @@ function Profile() {
             </span>
           </div>
         </section>
+        <WaitingReview data={data} />
 
         <div className="flex flex-wrap items-center gap-4 border-line border-y py-1.5">
           <label className="flex min-h-11 items-center gap-2 font-semibold">
@@ -246,9 +256,9 @@ function Profile() {
                 <BossPanel
                   s={s}
                   progress={progress}
-                  kills={data.kills}
-                  parts={data.parts}
-                  edit={data.owned ? edit.mutate : undefined}
+                  kills={tracked.kills}
+                  parts={tracked.parts}
+                  edit={data.role ? edit.mutate : undefined}
                   show={show ?? 'all'}
                   tiles={tiles}
                   setTiles={(on) => setSearch({ tiles: on || undefined })}

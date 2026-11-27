@@ -6,7 +6,8 @@ import { loadCharacter } from '#/characters/load.server.ts'
 import { CharacterName, nameSlug } from '#/characters/name.ts'
 import { db } from '#/db/client.ts'
 import { character } from '#/db/schema.ts'
-import { claim, nameStatus } from '#/groups/groups.ts'
+import { claim, nameStatus, trackingGroups } from '#/groups/groups.ts'
+import { editorRole, loadWaiting } from '#/progress/write.ts'
 
 /** The signed-in account and its characters, or null when signed out. */
 export const getMe = createServerFn().handler(async () => {
@@ -36,12 +37,30 @@ export const checkName = createServerFn()
   .validator(type({ name: CharacterName }))
   .handler(({ data }) => nameStatus(db, data.name))
 
-/** A character's public profile and progress, by profile slug. `owned` is true for its account. */
+/**
+ * A character's public profile and confirmed progress, by profile slug, with the viewer's role on it (see
+ * editorRole). The owner and the leaders of its groups also get its waiting edits.
+ */
 export const getCharacter = createServerFn()
   .validator(type({ slug: 'string' }))
   .handler(async ({ data }) => {
     const [c, user] = await Promise.all([loadCharacter(data.slug), currentUser()])
     if (!c) return null
+    const [who, groups, waiting] = await Promise.all([
+      editorRole(db, user?.id, c.id),
+      trackingGroups(db, c.id),
+      loadWaiting(db, c.id),
+    ])
     const { userId, ...profile } = c
-    return { ...profile, owned: user?.id === userId, signedIn: !!user }
+    const role = who?.role ?? null
+    return {
+      ...profile,
+      role,
+      claimed: userId !== null,
+      /** The group a leader edits through. */
+      ledGroup: groups.find((g) => g.id === who?.groupId)?.name ?? null,
+      groups,
+      waiting: role ? waiting : [],
+      signedIn: !!user,
+    }
   })

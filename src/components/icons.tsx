@@ -69,3 +69,33 @@ export const DownloadIcon = (p: IconProps) => (
     <path d="M12 3v12M7 10l5 5 5-5M5 21h14" />
   </Icon>
 )
+
+/** Marks edits that wait for a player to confirm them. */
+export const ClockIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M12 7v5l3 2" />
+  </Icon>
+)
+
+/** Marks a character nobody has claimed: a dashed ring, apart from the claimed check without color. */
+export const UnclaimedIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <circle cx="12" cy="12" r="9" strokeDasharray="4 3" />
+  </Icon>
+)
+
+/** Marks a claimed character. */
+export const ClaimedIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M8 12.3l3 3 5-6" />
+  </Icon>
+)
+
+/** Marks a group leader. */
+export const LeaderIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z" strokeLinejoin="round" />
+  </Icon>
+)
