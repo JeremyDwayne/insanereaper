@@ -312,7 +312,7 @@ function Parts({ parts, ticked, tick }: PartsProps) {
               {on && (
                 <span className="flex flex-none text-gold-text">
                   <CheckIcon size={14} />
-                  <span className="sr-only">Done</span>
+                  {!tick && <span className="sr-only">Done</span>}
                 </span>
               )}
             </>
