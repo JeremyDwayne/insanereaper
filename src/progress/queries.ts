@@ -39,6 +39,8 @@ export function useEdit(slug: string) {
       const c = queryClient.getQueryData(queryKey)
       if (c) queryClient.setQueryData(queryKey, stage(c, edit))
     },
+    // Group pages show this character's progress, so they load again on the next visit.
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['group'] }),
     onError: () => queryClient.invalidateQueries({ queryKey }),
   })
 }
@@ -60,6 +62,7 @@ export function useResolve(slug: string) {
       const rest = c.waiting.filter((w) => !picked.includes(w))
       const next: CharacterData = { ...(confirm ? applyWaiting(c, picked) : c), waiting: rest }
       queryClient.setQueryData(queryKey, next)
+      queryClient.invalidateQueries({ queryKey: ['group'] })
     },
     onError: () => queryClient.invalidateQueries({ queryKey }),
   })

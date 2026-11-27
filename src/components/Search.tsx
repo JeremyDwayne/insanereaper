@@ -43,7 +43,13 @@ export function Search({ slug, bosses, progress }: { slug: string; bosses: BossS
     if (!boss) return
     setQuery('')
     input.current?.blur()
-    navigate({ to: '/$character', params: { character: slug }, search: (s) => ({ ...s, boss }), resetScroll: false })
+    navigate({
+      from: '/$character',
+      to: '/$character',
+      params: { character: slug },
+      search: (s) => ({ ...s, boss }),
+      resetScroll: false,
+    })
   }
 
   const row = (hit: SearchHit, children: React.ReactNode) => {

@@ -6,18 +6,18 @@ import { loadCharacter } from '#/characters/load.server.ts'
 import { CharacterName, nameSlug } from '#/characters/name.ts'
 import { db } from '#/db/client.ts'
 import { character } from '#/db/schema.ts'
-import { claim, nameStatus, trackingGroups } from '#/groups/groups.ts'
+import { accountGroups, claim, nameStatus, trackingGroups } from '#/groups/groups.ts'
 import { editorRole, loadWaiting } from '#/progress/write.ts'
 
-/** The signed-in account and its characters, or null when signed out. */
+/** The signed-in account, its characters and its groups (see accountGroups), or null when signed out. */
 export const getMe = createServerFn().handler(async () => {
   const user = await currentUser()
   if (!user) return null
-  const characters = await db
-    .select({ id: character.id, name: character.name })
-    .from(character)
-    .where(eq(character.userId, user.id))
-  return { email: user.email, characters: characters.map((c) => ({ ...c, slug: nameSlug(c.name) })) }
+  const [characters, groups] = await Promise.all([
+    db.select({ id: character.id, name: character.name }).from(character).where(eq(character.userId, user.id)),
+    accountGroups(db, user.id),
+  ])
+  return { email: user.email, characters: characters.map((c) => ({ ...c, slug: nameSlug(c.name) })), groups }
 })
 
 export type ClaimResult = { ok: true; slug: string } | { ok: false; error: 'signed-out' | 'taken' }

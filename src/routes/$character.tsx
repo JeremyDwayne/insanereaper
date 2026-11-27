@@ -1,12 +1,12 @@
 import { useSuspenseQuery } from '@tanstack/react-query'
 import { createFileRoute, Link, notFound, redirect } from '@tanstack/react-router'
 import { type } from 'arktype'
-import { Fragment, useEffect, useMemo, useState } from 'react'
+import { Fragment, useEffect, useMemo } from 'react'
 import { imageUrl } from '#/catalogue/images.ts'
 import { catalogue } from '#/catalogue/index.ts'
 import { BossPanel } from '#/components/BossPanel.tsx'
-import { Header, HeaderButton } from '#/components/Header.tsx'
-import { DownloadIcon, LinkIcon } from '#/components/icons.tsx'
+import { CopyLink, Header, HeaderButton } from '#/components/Header.tsx'
+import { DownloadIcon } from '#/components/icons.tsx'
 import { Meter } from '#/components/Meter.tsx'
 import { Search } from '#/components/Search.tsx'
 import { CharacterNotice, WaitingReview } from '#/components/Waiting.tsx'
@@ -128,7 +128,7 @@ function Profile() {
         signedIn={data.signedIn}
         actions={
           <>
-            <CopyLink slug={data.slug} />
+            <CopyLink path={`/${data.slug}`} label="Copy profile link" />
             <HeaderButton onClick={() => downloadXlsx(catalogue, progress, data.name)}>
               <DownloadIcon />
               Export .xlsx
@@ -230,6 +230,7 @@ function Profile() {
             const line = (
               <Link
                 key={s.boss.id}
+                from={Route.fullPath}
                 to="/$character"
                 params={{ character: data.slug }}
                 search={(prev) => ({ ...prev, boss: open ? undefined : s.boss.id })}
@@ -281,22 +282,5 @@ function Profile() {
         </footer>
       </main>
     </>
-  )
-}
-
-/** Copies the public profile URL and says so for two seconds. */
-function CopyLink({ slug }: { slug: string }) {
-  const [copied, setCopied] = useState(false)
-  return (
-    <HeaderButton
-      onClick={async () => {
-        await navigator.clipboard.writeText(`${location.origin}/${slug}`)
-        setCopied(true)
-        setTimeout(() => setCopied(false), 2000)
-      }}
-    >
-      <LinkIcon />
-      {copied ? 'Copied' : 'Copy profile link'}
-    </HeaderButton>
   )
 }

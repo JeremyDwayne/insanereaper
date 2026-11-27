@@ -176,15 +176,19 @@ export function CharacterNotice({ data }: { data: CharacterData }) {
     )
   }
   if (data.claimed) return null
-  const groups = data.groups.map((g) => g.name)
   return (
     <p className="m-0 flex items-start gap-2.5 rounded border border-line2 border-dashed p-3">
       <UnclaimedIcon size={20} className="flex-none text-muted" />
       <span>
         <strong>Not claimed yet.</strong>
-        {groups.length > 0 && ` Tracked by ${list(groups)}.`}{' '}
+        {data.groups.length > 0 && (
+          <>
+            {' '}
+            Tracked by <GroupLinks groups={data.groups} />.
+          </>
+        )}{' '}
         {data.role === 'leader' ? (
-          `You lead ${groups.length > 1 ? data.ledGroup : 'it'}, so your changes save straight away and come with the character when its player claims it.`
+          `You lead ${data.groups.length > 1 ? data.ledGroup : 'it'}, so your changes save straight away and come with the character when its player claims it.`
         ) : (
           <>
             Is this you?{' '}
@@ -196,5 +200,18 @@ export function CharacterNotice({ data }: { data: CharacterData }) {
         )}
       </span>
     </p>
+  )
+}
+
+/** Links to each group's page, joined as "A, B and C". */
+function GroupLinks({ groups }: { groups: { name: string; slug: string }[] }) {
+  return new Intl.ListFormat('en').formatToParts(groups.map((g) => g.slug)).map((part) =>
+    part.type === 'element' ? (
+      <Link key={part.value} to="/groups/$group" params={{ group: part.value }}>
+        {groups.find((g) => g.slug === part.value)?.name}
+      </Link>
+    ) : (
+      part.value
+    ),
   )
 }

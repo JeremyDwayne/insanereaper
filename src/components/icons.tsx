@@ -99,3 +99,10 @@ export const LeaderIcon = (p: IconProps) => (
     <path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z" strokeLinejoin="round" />
   </Icon>
 )
+
+/** Opens a row's actions. */
+export const DotsIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M5 12h.01M12 12h.01M19 12h.01" strokeWidth="3.5" strokeLinecap="round" />
+  </Icon>
+)

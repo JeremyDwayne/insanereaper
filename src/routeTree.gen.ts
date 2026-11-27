@@ -14,6 +14,7 @@ import { Route as CharacterRouteImport } from './routes/$character'
 import { Route as AccountRouteImport } from './routes/account'
 import { Route as SignedInRouteImport } from './routes/signed-in'
 import { Route as StartRouteImport } from './routes/start'
+import { Route as GroupsGroupRouteImport } from './routes/groups/$group'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as OgCharacterBossRouteImport } from './routes/og/$character/$boss'
 
@@ -42,6 +43,11 @@ const StartRoute = StartRouteImport.update({
   path: '/start',
   getParentRoute: () => rootRouteImport,
 } as any)
+const GroupsGroupRoute = GroupsGroupRouteImport.update({
+  id: '/groups/$group',
+  path: '/groups/$group',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   id: '/api/auth/$',
   path: '/api/auth/$',
@@ -59,6 +65,7 @@ export interface FileRoutesByFullPath {
   '/account': typeof AccountRoute
   '/signed-in': typeof SignedInRoute
   '/start': typeof StartRoute
+  '/groups/$group': typeof GroupsGroupRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/og/$character/$boss': typeof OgCharacterBossRoute
 }
@@ -68,6 +75,7 @@ export interface FileRoutesByTo {
   '/account': typeof AccountRoute
   '/signed-in': typeof SignedInRoute
   '/start': typeof StartRoute
+  '/groups/$group': typeof GroupsGroupRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/og/$character/$boss': typeof OgCharacterBossRoute
 }
@@ -78,6 +86,7 @@ export interface FileRoutesById {
   '/account': typeof AccountRoute
   '/signed-in': typeof SignedInRoute
   '/start': typeof StartRoute
+  '/groups/$group': typeof GroupsGroupRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/og/$character/$boss': typeof OgCharacterBossRoute
 }
@@ -89,6 +98,7 @@ export interface FileRouteTypes {
     | '/account'
     | '/signed-in'
     | '/start'
+    | '/groups/$group'
     | '/api/auth/$'
     | '/og/$character/$boss'
   fileRoutesByTo: FileRoutesByTo
@@ -98,6 +108,7 @@ export interface FileRouteTypes {
     | '/account'
     | '/signed-in'
     | '/start'
+    | '/groups/$group'
     | '/api/auth/$'
     | '/og/$character/$boss'
   id:
@@ -107,6 +118,7 @@ export interface FileRouteTypes {
     | '/account'
     | '/signed-in'
     | '/start'
+    | '/groups/$group'
     | '/api/auth/$'
     | '/og/$character/$boss'
   fileRoutesById: FileRoutesById
@@ -117,6 +129,7 @@ export interface RootRouteChildren {
   AccountRoute: typeof AccountRoute
   SignedInRoute: typeof SignedInRoute
   StartRoute: typeof StartRoute
+  GroupsGroupRoute: typeof GroupsGroupRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   OgCharacterBossRoute: typeof OgCharacterBossRoute
 }
@@ -158,6 +171,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StartRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/groups/$group': {
+      id: '/groups/$group'
+      path: '/groups/$group'
+      fullPath: '/groups/$group'
+      preLoaderRoute: typeof GroupsGroupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/auth/$': {
       id: '/api/auth/$'
       path: '/api/auth/$'
@@ -181,6 +201,7 @@ const rootRouteChildren: RootRouteChildren = {
   AccountRoute: AccountRoute,
   SignedInRoute: SignedInRoute,
   StartRoute: StartRoute,
+  GroupsGroupRoute: GroupsGroupRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   OgCharacterBossRoute: OgCharacterBossRoute,
 }
