@@ -31,7 +31,8 @@
     "Amascutt",
     "Amascut story mode",
     "Killing amascut",
-    "Amascut the devour"
+    "Amascut the devour",
+    "Amascut the dev"
    ],
    "entries": [
     {
@@ -804,7 +805,8 @@
     "Chaos elemenal",
     "Cahos elemental",
     "Chaos eleme",
-    "Chaos elementa;"
+    "Chaos elementa;",
+    "Chaos elementla"
    ],
    "entries": [
     {
@@ -1336,7 +1338,8 @@
     "Money making croesus",
     "Coroesus",
     "Croesus nodes",
-    "Croesues"
+    "Croesues",
+    "Croeasus"
    ],
    "entries": [
     {
@@ -3892,7 +3895,8 @@
     "Nex:angel of death",
     "Aod rs3",
     "Aodf",
-    "Angel of deaht"
+    "Angel of deaht",
+    "Angel fo death"
    ],
    "entries": [
     {
@@ -4427,7 +4431,8 @@
     "Rex matrich",
     "Rexmatriarch",
     "Rex matrirchs",
-    "Dino bosses"
+    "Dino bosses",
+    "Rex metriachs"
    ],
    "entries": [
     {
@@ -6474,7 +6479,8 @@
     "Memories of the devourer",
     "Memoris of the devourer",
     "Amascut lore book",
-    "Memours of the devourer"
+    "Memours of the devourer",
+    "Memoirs of the dev"
    ]
   },
   {
@@ -10846,7 +10852,8 @@
     "Dragon harppon",
     "Dragonharpoon",
     "Dargon harpoon",
-    "Harpoon dragon"
+    "Harpoon dragon",
+    "Dagon harpoon"
    ]
   },
   {
@@ -10942,7 +10949,8 @@
     "Memorie dowser",
     "Mem dowser",
     "Dowzer",
-    "Memory dowsert"
+    "Memory dowsert",
+    "Memmory dowser"
    ]
   },
   {
@@ -16862,7 +16870,7 @@
   {
    "id": "1263",
    "name": "eLeMeNtAl kIlL cHaOs III",
-   "page": "eLeMeNtAl kIlL cHaOs III",
+   "page": "ELeMeNtAl kIlL cHaOs III",
    "description": "Defeat the Chaos Elemental. (X/25)",
    "members": false,
    "subcategory": "Chaos Elemental",
@@ -18566,7 +18574,7 @@
   {
    "id": "3145",
    "name": "Wrath of Chaos",
-   "page": "Wrath of Chaos",
+   "page": "Wrath of Chaos (achievement)",
    "description": "Defeat Zamorak, Lord of Chaos solo at 4,000% enrage.",
    "members": true,
    "subcategory": "Zamorak",
@@ -18962,7 +18970,7 @@
   {
    "id": "3652",
    "name": "Flow State",
-   "page": "Flow State",
+   "page": "Flow State (achievement)",
    "description": "Defeat Raksha, the Shadow Colossus after using the correct protection prayer against all of his basic attacks.",
    "members": true,
    "subcategory": "Raksha",
@@ -19394,7 +19402,7 @@
   {
    "id": "3688",
    "name": "Lord of Chaos",
-   "page": "Lord of Chaos",
+   "page": "Lord of Chaos (achievement)",
    "description": "Defeat Zamorak, Lord of Chaos in a group at 500% enrage.",
    "members": true,
    "subcategory": "Zamorak",
@@ -22370,7 +22378,7 @@
   {
    "id": "3937",
    "name": "You Wouldn't Like Me When I'm Angry",
-   "page": "You Wouldn't Like Me When I'm Angry",
+   "page": "You Wouldn't Like Me When I'm Angry (General Graardor achievement)",
    "description": "Defeat General Graardor in hard mode, solo, without taking damage from his 'Graardor Mad' attack.",
    "members": true,
    "subcategory": "General Graardor",
@@ -23978,7 +23986,7 @@
   {
    "id": "5123",
    "name": "Eyes On The Prize",
-   "page": "Eyes On The Prize",
+   "page": "Eyes On The Prize (Combat achievement)",
    "description": "Defeat Flesh-hatcher Mhekarnahz without being stunned by their 'Warped Strike' attack.",
    "members": true,
    "subcategory": "Flesh-hatcher Mhekarnahz",
