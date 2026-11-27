@@ -22,6 +22,8 @@ const ProfileSearch = type({
   /** Also list logs with nothing left. */
   'all?': 'boolean',
   'show?': "'drops' | 'tasks'",
+  /** Achievements as tiles in the open boss panel. */
+  'tiles?': 'boolean',
   /** Row order; the game's combat achievement list when absent or unknown, such as an old link's value. */
   'sort?': type('string').pipe((v) => (isOrder(v) ? v : undefined)),
 })
@@ -96,7 +98,7 @@ const sorts = {
 
 function Profile() {
   const { character } = Route.useParams()
-  const { boss, all = false, show, sort } = Route.useSearch()
+  const { boss, all = false, show, sort, tiles = false } = Route.useSearch()
   const navigate = Route.useNavigate()
   const { data } = useSuspenseQuery(characterQuery(character))
   const edit = useEdit(character)
@@ -247,6 +249,8 @@ function Profile() {
                   kills={data.kills}
                   edit={data.owned ? edit.mutate : undefined}
                   show={show ?? 'all'}
+                  tiles={tiles}
+                  setTiles={(on) => setSearch({ tiles: on || undefined })}
                 />
               </div>
             ) : (
