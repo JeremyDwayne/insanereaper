@@ -4,7 +4,7 @@ import { eq } from 'drizzle-orm'
 import { currentUser } from '#/auth/user.server.ts'
 import { CharacterName, nameKey, nameSlug } from '#/characters/name.ts'
 import { db } from '#/db/client.ts'
-import { character, itemProgress, killCount, taskProgress } from '#/db/schema.ts'
+import { character, itemProgress, killCount, taskPart, taskProgress } from '#/db/schema.ts'
 
 /** The signed-in account and its characters, or null when signed out. */
 export const getMe = createServerFn().handler(async () => {
@@ -54,12 +54,15 @@ export const getCharacter = createServerFn()
       .from(character)
       .where(eq(character.nameKey, nameKey(data.slug)))
     if (!row) return null
-    const [items, tasks, kills, user] = await Promise.all([
+    const [items, tasks, parts, kills, user] = await Promise.all([
       db.select().from(itemProgress).where(eq(itemProgress.characterId, row.id)),
       db.select().from(taskProgress).where(eq(taskProgress.characterId, row.id)),
+      db.select().from(taskPart).where(eq(taskPart.characterId, row.id)),
       db.select().from(killCount).where(eq(killCount.characterId, row.id)),
       currentUser(),
     ])
+    const partsByTask: Record<string, string[]> = {}
+    for (const p of parts) partsByTask[p.taskId] = [...(partsByTask[p.taskId] ?? []), p.part]
     return {
       id: row.id,
       name: row.name,
@@ -68,6 +71,8 @@ export const getCharacter = createServerFn()
       signedIn: !!user,
       items: Object.fromEntries(items.map((i) => [i.itemId, i.count])),
       tasks: tasks.map((t) => t.taskId),
+      /** Ticked part names by task id (see TASK_PARTS). */
+      parts: partsByTask,
       /** Keyed by `${bossId}:${kind}`. */
       kills: Object.fromEntries(kills.map((k) => [`${k.bossId}:${k.kind}`, k.value])),
     }
