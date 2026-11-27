@@ -4,3 +4,5 @@ import * as schema from './schema.ts'
 
 /** Drizzle over the Worker's D1 binding. Server code only. */
 export const db = drizzle(env.DB, { schema })
+
+export type Db = typeof db

@@ -1,19 +1,13 @@
 import { queryOptions, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getCharacter } from '#/server/characters.ts'
 import { setItemCount, setKillCount, setPartDone, setTaskDone } from '#/server/progress.ts'
-import type { KillKind } from './kills.ts'
+import type { Edit } from './edit.ts'
 
 /** A character's profile and progress, fetched once per session and then edited in place. */
 export const characterQuery = (slug: string) =>
   queryOptions({ queryKey: ['character', slug], queryFn: () => getCharacter({ data: { slug } }) })
 
 export type CharacterData = NonNullable<Awaited<ReturnType<typeof getCharacter>>>
-
-export type Edit =
-  | { itemId: string; count: number }
-  | { taskId: string; done: boolean }
-  | { taskId: string; part: string; done: boolean }
-  | { bossId: string; kind: KillKind; value: number }
 
 function apply(c: CharacterData, edit: Edit): CharacterData {
   if ('itemId' in edit) return { ...c, items: { ...c.items, [edit.itemId]: edit.count } }

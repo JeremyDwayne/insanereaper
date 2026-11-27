@@ -3,9 +3,10 @@ import { type } from 'arktype'
 import { eq } from 'drizzle-orm'
 import { currentUser } from '#/auth/user.server.ts'
 import { loadCharacter } from '#/characters/load.server.ts'
-import { CharacterName, nameKey, nameSlug } from '#/characters/name.ts'
+import { CharacterName, nameSlug } from '#/characters/name.ts'
 import { db } from '#/db/client.ts'
 import { character } from '#/db/schema.ts'
+import { claim, nameStatus } from '#/groups/groups.ts'
 
 /** The signed-in account and its characters, or null when signed out. */
 export const getMe = createServerFn().handler(async () => {
@@ -20,31 +21,20 @@ export const getMe = createServerFn().handler(async () => {
 
 export type ClaimResult = { ok: true; slug: string } | { ok: false; error: 'signed-out' | 'taken' }
 
-/** Claims a character name for the signed-in account. Names are unique by nameKey. */
+/** Claims a character name for the signed-in account (see claim). `fresh` drops what groups recorded for it. */
 export const claimCharacter = createServerFn({ method: 'POST' })
-  .validator(type({ name: CharacterName }))
+  .validator(type({ name: CharacterName, 'fresh?': 'boolean' }))
   .handler(async ({ data }): Promise<ClaimResult> => {
     const user = await currentUser()
     if (!user) return { ok: false, error: 'signed-out' }
-    const inserted = await db
-      .insert(character)
-      .values({ userId: user.id, name: data.name, nameKey: nameKey(data.name) })
-      .onConflictDoNothing({ target: character.nameKey })
-      .returning({ id: character.id })
-    if (!inserted.length) return { ok: false, error: 'taken' }
+    if (!(await claim(db, user.id, data.name, data.fresh ?? false))) return { ok: false, error: 'taken' }
     return { ok: true, slug: nameSlug(data.name) }
   })
 
-/** True when no account has claimed a name with the same key. */
+/** Whether a name can be claimed, and what groups recorded for it (see nameStatus). */
 export const checkName = createServerFn()
   .validator(type({ name: CharacterName }))
-  .handler(async ({ data }) => {
-    const [row] = await db
-      .select({ id: character.id })
-      .from(character)
-      .where(eq(character.nameKey, nameKey(data.name)))
-    return !row
-  })
+  .handler(({ data }) => nameStatus(db, data.name))
 
 /** A character's public profile and progress, by profile slug. `owned` is true for its account. */
 export const getCharacter = createServerFn()

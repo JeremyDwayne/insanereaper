@@ -7,6 +7,7 @@ import { CharacterName } from '#/characters/name.ts'
 import { Header } from '#/components/Header.tsx'
 import { CheckIcon, InfoIcon, MailIcon } from '#/components/icons.tsx'
 import { Turnstile } from '#/components/Turnstile.tsx'
+import type { Recorded } from '#/groups/groups.ts'
 import { checkName, claimCharacter, getMe } from '#/server/characters.ts'
 
 export const Route = createFileRoute('/start')({
@@ -152,11 +153,18 @@ function ClaimForm({ fromEmail }: { fromEmail: boolean }) {
   const navigate = useNavigate()
   const [name, setName] = useState('')
   const [status, setStatus] = useState<'idle' | 'available' | 'taken' | 'invalid'>('idle')
+  const [recorded, setRecorded] = useState<Recorded | null>(null)
+  const [fresh, setFresh] = useState(false)
 
   useEffect(() => {
+    setRecorded(null)
     if (!name.trim()) return setStatus('idle')
     if (CharacterName(name) instanceof type.errors) return setStatus('invalid')
-    const timer = setTimeout(async () => setStatus((await checkName({ data: { name } })) ? 'available' : 'taken'), 300)
+    const timer = setTimeout(async () => {
+      const check = await checkName({ data: { name } })
+      setStatus(check.available ? 'available' : 'taken')
+      if (check.available) setRecorded(check.recorded)
+    }, 300)
     return () => clearTimeout(timer)
   }, [name])
 
@@ -165,7 +173,7 @@ function ClaimForm({ fromEmail }: { fromEmail: boolean }) {
       className={`${panel} border-2 border-gold-text`}
       onSubmit={async (e) => {
         e.preventDefault()
-        const result = await claimCharacter({ data: { name } })
+        const result = await claimCharacter({ data: { name, fresh } })
         if (result.ok) navigate({ to: '/$character', params: { character: result.slug } })
         else setStatus('taken')
       }}
@@ -193,11 +201,28 @@ function ClaimForm({ fromEmail }: { fromEmail: boolean }) {
           onChange={(e) => setName(e.target.value)}
         />
       </label>
-      {status === 'available' && (
+      {status === 'available' && !recorded && (
         <p className="m-0 flex items-center gap-2 font-semibold">
           <CheckIcon size={18} className="text-gold-text" />
           Available
         </p>
+      )}
+      {status === 'available' && recorded && (
+        <div className="flex flex-col gap-2.5 rounded border border-line2 border-dashed p-3">
+          <p className="m-0 flex items-start gap-2.5">
+            <CheckIcon size={18} className="mt-px flex-none text-gold-text" />
+            <span>{recordedText(recorded)}</span>
+          </p>
+          <label className="flex min-h-9 items-center gap-2.5 pl-7">
+            <input
+              type="checkbox"
+              checked={fresh}
+              className="size-[18px] accent-gold"
+              onChange={(e) => setFresh(e.target.checked)}
+            />
+            Start from scratch instead
+          </label>
+        </div>
       )}
       {status === 'invalid' && (
         <p className="m-0 flex items-center gap-2 text-muted">
@@ -226,4 +251,16 @@ function ClaimForm({ fromEmail }: { fromEmail: boolean }) {
       </button>
     </form>
   )
+}
+
+const counted = (n: number, noun: string) => `${n.toLocaleString()} ${noun}${n === 1 ? '' : 's'}`
+const list = (parts: string[]) => new Intl.ListFormat('en').format(parts)
+
+/** The claim notice for a name that groups track: who tracks it and what they recorded. */
+function recordedText({ groups, drops, tasks, kills }: Recorded) {
+  const what = list([counted(drops, 'drop'), counted(tasks, 'achievement'), counted(kills, 'kill count')])
+  const lead = groups.length
+    ? `Available, and tracked by ${list(groups)}. ${groups.length > 1 ? 'Their' : 'Its'} leaders recorded ${what}.`
+    : `Available. ${what} were recorded for it.`
+  return `${lead} They come with your claim.`
 }
