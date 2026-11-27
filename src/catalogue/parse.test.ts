@@ -36,6 +36,7 @@ describe('parseTasks', () => {
     expect(tasks[0]).toEqual({
       id: '3745',
       name: 'Nex Master Speed Killer',
+      page: 'Nex Master Speed Killer',
       description: 'Defeat Nex solo in less than 01:21.',
       members: true,
       subcategory: 'Nex',

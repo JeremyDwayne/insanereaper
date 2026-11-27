@@ -18,6 +18,7 @@ const boss = (id: string, logId = id) => ({ id, name: id, logId, page: id, wikiI
 const task = (id: string, bossId: string, tier: Tier, logId = bossId): Task => ({
   id,
   name: id,
+  page: id,
   description: '',
   subcategory: bossId,
   bossId,

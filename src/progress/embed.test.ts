@@ -7,6 +7,7 @@ const item = (id: string) => ({ id, name: `Item ${id}`, pet: false, wikiImage: '
 const task = (id: string, tier: Tier, points: number) => ({
   id,
   name: id,
+  page: id,
   description: '',
   subcategory: 'Vorago',
   bossId: 'vorago',

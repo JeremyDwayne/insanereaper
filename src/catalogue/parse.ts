@@ -85,6 +85,8 @@ export function parseTasks(html: string): RawTask[] {
     return {
       id: tr.getAttribute('data-rowid') ?? '',
       name: cellText(td[0]),
+      // A red link, class "new", is a page the wiki does not have yet.
+      page: td[0].querySelector('a:not(.new)')?.getAttribute('title') ?? '',
       description: cellText(td[1]),
       members: (td[2].querySelector('img')?.getAttribute('src') ?? '').includes('P2P'),
       subcategory: cellText(td[3]),

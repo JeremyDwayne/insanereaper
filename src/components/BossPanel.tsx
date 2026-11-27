@@ -11,6 +11,18 @@ import { Mark } from './Mark.tsx'
 
 const KINDS = killKinds(catalogue)
 
+const wikiUrl = (page: string) => `https://runescape.wiki/w/${encodeURIComponent(page.replaceAll(' ', '_'))}`
+
+/** A task's wiki page link, opened in a new tab. Inside a checkbox label it follows the link without ticking. */
+function TaskWiki({ task }: { task: Task }) {
+  if (!task.page) return null
+  return (
+    <a href={wikiUrl(task.page)} target="_blank" rel="noreferrer" aria-label={`${task.name} on the wiki`}>
+      Wiki
+    </a>
+  )
+}
+
 type Props = {
   s: BossSummary
   progress: Progress
@@ -55,12 +67,7 @@ export function BossPanel({ s, progress, kills, parts, edit, show, tiles, setTil
           />
         ))}
         {s.log.title && <span className="text-muted text-xs">Log title: {s.log.title}</span>}
-        <a
-          href={`https://runescape.wiki/w/${encodeURIComponent(s.boss.page.replaceAll(' ', '_'))}`}
-          className="text-xs"
-          target="_blank"
-          rel="noreferrer"
-        >
+        <a href={wikiUrl(s.boss.page)} className="text-xs" target="_blank" rel="noreferrer">
           Wiki page
         </a>
       </div>
@@ -259,7 +266,12 @@ function TaskRow({ task, done, ticked, edit }: TaskRowProps) {
       <span className="mt-0.5 block text-[13px] text-muted">{task.description}</span>
     </span>
   )
-  const points = <span className="whitespace-nowrap text-xs">{task.points} pts</span>
+  const points = (
+    <span className="flex flex-col items-end gap-1 whitespace-nowrap text-xs">
+      {task.points} pts
+      <TaskWiki task={task} />
+    </span>
+  )
   const row = 'flex items-start gap-3 px-2.5 py-2'
   return (
     <div className="border-line border-b">
@@ -364,7 +376,10 @@ function TaskTile({ task, done, edit }: { task: Task; done: boolean; edit?: (edi
   const text = (
     <span className="min-w-0">
       <strong className="block text-[13px] leading-tight">{task.name}</strong>
-      <span className="text-muted text-xs">{task.points} pts</span>
+      <span className="flex gap-2 text-muted text-xs">
+        {task.points} pts
+        <TaskWiki task={task} />
+      </span>
     </span>
   )
   return edit ? (
