@@ -1,5 +1,5 @@
 import { Link } from '@tanstack/react-router'
-import { useEffect, useRef, useState } from 'react'
+import { type CSSProperties, useEffect, useRef, useState } from 'react'
 import { catalogue } from '#/catalogue/index.ts'
 import { applyWaiting } from '#/progress/edit.ts'
 import { summarize } from '#/progress/summary.ts'
@@ -59,46 +59,62 @@ function Status({ m, short }: { m: Member; short?: boolean }) {
 
 export type MenuItem = { label: string; run: () => void }
 
-/** A row's actions behind a button. Closes on a pick, Escape, or a press outside it. */
+/**
+ * A row's actions behind a button. The list is fixed to the window so the roster's scroll box cannot clip it, and
+ * opens above the button when there is no room below. Closes on a pick, Escape, a scroll, or a press outside it.
+ */
 function RowMenu({ label, items }: { label: string; items: MenuItem[] }) {
-  const [open, setOpen] = useState(false)
+  const [at, setAt] = useState<CSSProperties | null>(null)
   const ref = useRef<HTMLSpanElement>(null)
   useEffect(() => {
-    if (!open) return
+    if (!at) return
+    const close = () => setAt(null)
     const outside = (e: PointerEvent) => {
-      if (!(e.target instanceof Node && ref.current?.contains(e.target))) setOpen(false)
+      if (!(e.target instanceof Node && ref.current?.contains(e.target))) close()
     }
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpen(false)
+      if (e.key === 'Escape') close()
     }
     document.addEventListener('pointerdown', outside)
     document.addEventListener('keydown', onKey)
+    // Captured, so scrolling the roster sideways closes it too.
+    window.addEventListener('scroll', close, { capture: true })
+    window.addEventListener('resize', close)
     return () => {
       document.removeEventListener('pointerdown', outside)
       document.removeEventListener('keydown', onKey)
+      window.removeEventListener('scroll', close, { capture: true })
+      window.removeEventListener('resize', close)
     }
-  }, [open])
+  }, [at])
   if (!items.length) return <span />
+  const open = (button: HTMLElement) => {
+    const r = button.getBoundingClientRect()
+    const right = window.innerWidth - r.right
+    // Each item is 40px tall, plus the list's padding and border.
+    const below = r.bottom + 6 + items.length * 40 + 10 <= window.innerHeight
+    setAt(below ? { top: r.bottom + 6, right } : { bottom: window.innerHeight - r.top + 6, right })
+  }
   return (
-    <span ref={ref} className="relative flex justify-end">
+    <span ref={ref} className="flex justify-end">
       <button
         type="button"
         aria-label={label}
-        aria-expanded={open}
-        className={`flex size-9 cursor-pointer items-center justify-center rounded border bg-transparent text-text ${open ? 'border-gold-text' : 'border-line2'}`}
-        onClick={() => setOpen(!open)}
+        aria-expanded={!!at}
+        className={`flex size-9 cursor-pointer items-center justify-center rounded border bg-transparent text-text ${at ? 'border-gold-text' : 'border-line2'}`}
+        onClick={(e) => (at ? setAt(null) : open(e.currentTarget))}
       >
         <DotsIcon />
       </button>
-      {open && (
-        <span className="absolute top-[42px] right-0 z-10 flex min-w-[190px] flex-col rounded border border-line2 bg-raise p-1">
+      {at && (
+        <span style={at} className="fixed z-10 flex min-w-[190px] flex-col rounded border border-line2 bg-raise p-1">
           {items.map((item) => (
             <button
               key={item.label}
               type="button"
               className="min-h-10 cursor-pointer rounded border-0 bg-transparent px-3 text-left font-semibold text-text hover:bg-surface"
               onClick={() => {
-                setOpen(false)
+                setAt(null)
                 item.run()
               }}
             >
