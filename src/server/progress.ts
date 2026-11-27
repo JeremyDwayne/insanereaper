@@ -5,8 +5,9 @@ import { and, eq } from 'drizzle-orm'
 import { currentUser } from '#/auth/user.server.ts'
 import { bossesById, itemsById, tasksById } from '#/catalogue/index.ts'
 import { db } from '#/db/client.ts'
-import { character, itemProgress, killCount, taskProgress } from '#/db/schema.ts'
+import { character, itemProgress, killCount, taskPart, taskProgress } from '#/db/schema.ts'
 import { KILL_KINDS } from '#/progress/kills.ts'
+import { TASK_PARTS } from '#/progress/parts.ts'
 
 /** True when the signed-in account owns the character; sets 403 otherwise. */
 async function ownsCharacter(characterId: string): Promise<boolean> {
@@ -40,6 +41,22 @@ export const setTaskDone = createServerFn({ method: 'POST' })
       await db
         .delete(taskProgress)
         .where(and(eq(taskProgress.characterId, data.characterId), eq(taskProgress.taskId, data.taskId)))
+    }
+    return { ok: true }
+  })
+
+/** Ticks or unticks one part of a multi-part task (see TASK_PARTS) for an owned character. */
+export const setPartDone = createServerFn({ method: 'POST' })
+  .validator(type({ characterId: 'string', taskId: 'string', part: 'string', done: 'boolean' }))
+  .handler(async ({ data }) => {
+    const { characterId, taskId, part } = data
+    if (!TASK_PARTS[taskId]?.includes(part) || !(await ownsCharacter(characterId))) return { ok: false }
+    if (data.done) {
+      await db.insert(taskPart).values({ characterId, taskId, part }).onConflictDoNothing()
+    } else {
+      await db
+        .delete(taskPart)
+        .where(and(eq(taskPart.characterId, characterId), eq(taskPart.taskId, taskId), eq(taskPart.part, part)))
     }
     return { ok: true }
   })

@@ -46,6 +46,19 @@ export const taskProgress = sqliteTable(
   (t) => [primaryKey({ columns: [t.characterId, t.taskId] })],
 )
 
+/** Ticked parts of multi-part tasks, by catalogue task id and part name (see TASK_PARTS). */
+export const taskPart = sqliteTable(
+  'task_part',
+  {
+    characterId: text('character_id')
+      .notNull()
+      .references(() => character.id, { onDelete: 'cascade' }),
+    taskId: text('task_id').notNull(),
+    part: text('part').notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.characterId, t.taskId, t.part] })],
+)
+
 /** Kill counts typed in by the player, per catalogue boss and kind (see KILL_KINDS). */
 export const killCount = sqliteTable(
   'kill_count',

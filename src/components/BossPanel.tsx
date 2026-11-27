@@ -3,6 +3,7 @@ import { imageUrl } from '#/catalogue/images.ts'
 import { catalogue, itemsById } from '#/catalogue/index.ts'
 import type { Task } from '#/catalogue/schema.ts'
 import { chanceByNow, KILL_LABELS, type KillKind, killKinds } from '#/progress/kills.ts'
+import { partEdits, TASK_PARTS } from '#/progress/parts.ts'
 import type { Edit } from '#/progress/queries.ts'
 import { type BossSummary, obtained, type Progress, tierSummaries } from '#/progress/summary.ts'
 import { CheckIcon } from './icons.tsx'
@@ -15,6 +16,8 @@ type Props = {
   progress: Progress
   /** Kill counts keyed by `${bossId}:${kind}`. */
   kills: Record<string, number>
+  /** Ticked part names by task id (see TASK_PARTS). */
+  parts: Partial<Record<string, string[]>>
   /** Present only for the character's own account. */
   edit?: (edit: Edit) => void
   show: 'all' | 'drops' | 'tasks'
@@ -24,7 +27,7 @@ type Props = {
 }
 
 /** An expanded boss: art and kill counts, every drop in its log with missing ones first, then achievements left by tier. */
-export function BossPanel({ s, progress, kills, edit, show, tiles, setTiles }: Props) {
+export function BossPanel({ s, progress, kills, parts, edit, show, tiles, setTiles }: Props) {
   const [showDone, setShowDone] = useState(false)
   const entries = s.log.entries.map((e) => ({ ...e, item: itemsById.get(e.itemId) }))
   const missing = entries.filter((e) => !obtained(progress, e.itemId))
@@ -111,10 +114,19 @@ export function BossPanel({ s, progress, kills, edit, show, tiles, setTiles }: P
                   <div className={tiles ? 'mt-1.5 grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-1.5' : ''}>
                     {s.tasks
                       .filter((task) => task.tier === t.tier && (showDone || !progress.tasks.has(task.id)))
-                      .map((task) => {
-                        const Task = tiles ? TaskTile : TaskRow
-                        return <Task key={task.id} task={task} done={progress.tasks.has(task.id)} edit={edit} />
-                      })}
+                      .map((task) =>
+                        tiles ? (
+                          <TaskTile key={task.id} task={task} done={progress.tasks.has(task.id)} edit={edit} />
+                        ) : (
+                          <TaskRow
+                            key={task.id}
+                            task={task}
+                            done={progress.tasks.has(task.id)}
+                            ticked={parts[task.id] ?? []}
+                            edit={edit}
+                          />
+                        ),
+                      )}
                   </div>
                 </div>
               ))}
@@ -230,8 +242,17 @@ function CountEditor({ count, save }: { count: number; save: (count: number) => 
   )
 }
 
-/** One achievement. The owner gets a checkbox; visitors see a read-only mark. */
-function TaskRow({ task, done, edit }: { task: Task; done: boolean; edit?: (edit: Edit) => void }) {
+type TaskRowProps = {
+  task: Task
+  done: boolean
+  /** Ticked part names, for tasks in TASK_PARTS. */
+  ticked: string[]
+  edit?: (edit: Edit) => void
+}
+
+/** One achievement. The owner gets a checkbox; visitors see a read-only mark. Open multi-part tasks show their parts. */
+function TaskRow({ task, done, ticked, edit }: TaskRowProps) {
+  const parts = TASK_PARTS[task.id]
   const text = (
     <span className={`flex-auto ${done ? 'opacity-60' : ''}`}>
       <strong>{task.name}</strong>
@@ -239,25 +260,100 @@ function TaskRow({ task, done, edit }: { task: Task; done: boolean; edit?: (edit
     </span>
   )
   const points = <span className="whitespace-nowrap text-xs">{task.points} pts</span>
-  const row = 'flex items-start gap-3 border-line border-b px-2.5 py-2'
-  return edit ? (
-    <label className={`${row} cursor-pointer`}>
-      <input
-        type="checkbox"
-        checked={done}
-        className="mt-0.5 size-[18px] flex-none accent-gold"
-        onChange={(e) => edit({ taskId: task.id, done: e.target.checked })}
-      />
-      {text}
-      {points}
-    </label>
-  ) : (
-    <div className={row}>
-      <span className="mt-0.5">
-        <Mark done={done} />
+  const row = 'flex items-start gap-3 px-2.5 py-2'
+  return (
+    <div className="border-line border-b">
+      {edit ? (
+        <label className={`${row} cursor-pointer`}>
+          <input
+            type="checkbox"
+            checked={done}
+            className="mt-0.5 size-[18px] flex-none accent-gold"
+            onChange={(e) => edit({ taskId: task.id, done: e.target.checked })}
+          />
+          {text}
+          {points}
+        </label>
+      ) : (
+        <div className={row}>
+          <span className="mt-0.5">
+            <Mark done={done} />
+          </span>
+          {text}
+          {points}
+        </div>
+      )}
+      {parts && !done && (
+        <Parts
+          parts={parts}
+          ticked={ticked}
+          tick={
+            edit &&
+            ((part, on) => {
+              for (const e of partEdits(task.id, part, on, ticked)) edit(e)
+            })
+          }
+        />
+      )}
+    </div>
+  )
+}
+
+type PartsProps = {
+  parts: readonly string[]
+  ticked: string[]
+  /** Present only for the character's own account. */
+  tick?: (part: string, done: boolean) => void
+}
+
+/** A multi-part task's progress: one meter segment per part, then a tile per part, dashed until ticked. */
+function Parts({ parts, ticked, tick }: PartsProps) {
+  const done = parts.filter((p) => ticked.includes(p)).length
+  return (
+    <div className="flex flex-col gap-2 pr-2.5 pb-2.5 pl-10">
+      <span className="flex items-center gap-2.5 text-muted text-xs tabular-nums">
+        <span className="flex gap-0.5" aria-hidden="true">
+          {parts.map((p) => (
+            <span key={p} className={`h-2 w-5 border ${ticked.includes(p) ? 'border-ach bg-ach' : 'border-line2'}`} />
+          ))}
+        </span>
+        {done} of {parts.length}
       </span>
-      {text}
-      {points}
+      <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
+        {parts.map((p) => {
+          const on = ticked.includes(p)
+          const box = `flex min-h-10 items-center justify-between gap-1.5 rounded bg-surface px-2.5 py-1.5 text-left text-[13px] text-text ${
+            on ? 'border-2 border-gold-text' : 'border border-line2 border-dashed'
+          }`
+          const body = (
+            <>
+              {p}
+              {on && (
+                <span className="flex flex-none text-gold-text">
+                  <CheckIcon size={14} />
+                  {!tick && <span className="sr-only">Done</span>}
+                </span>
+              )}
+            </>
+          )
+          return tick ? (
+            <button
+              key={p}
+              type="button"
+              aria-pressed={on}
+              title={on ? 'Mark not done' : 'Mark done'}
+              className={`${box} cursor-pointer`}
+              onClick={() => tick(p, !on)}
+            >
+              {body}
+            </button>
+          ) : (
+            <span key={p} className={box}>
+              {body}
+            </span>
+          )
+        })}
+      </div>
     </div>
   )
 }
