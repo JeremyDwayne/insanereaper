@@ -3,7 +3,7 @@ import { bossesById, catalogue, itemsById, tasksById } from '#/catalogue/index.t
 import type { Edit, Tracked, Waiting } from '#/progress/edit.ts'
 import { KILL_LABELS } from '#/progress/kills.ts'
 import { type CharacterData, holdsEdits, useResolve } from '#/progress/queries.ts'
-import { counted, list } from '#/text.ts'
+import { counted, list, listFormat } from '#/text.ts'
 import { ClockIcon, UnclaimedIcon } from './icons.tsx'
 
 /** How an edit reads in a list, against the confirmed progress it would change. */
@@ -205,7 +205,7 @@ export function CharacterNotice({ data }: { data: CharacterData }) {
 
 /** Links to each group's page, joined as "A, B and C". */
 function GroupLinks({ groups }: { groups: { name: string; slug: string }[] }) {
-  return new Intl.ListFormat('en').formatToParts(groups.map((g) => g.slug)).map((part) =>
+  return listFormat.formatToParts(groups.map((g) => g.slug)).map((part) =>
     part.type === 'element' ? (
       <Link key={part.value} to="/groups/$group" params={{ group: part.value }}>
         {groups.find((g) => g.slug === part.value)?.name}
