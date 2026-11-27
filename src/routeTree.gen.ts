@@ -15,6 +15,7 @@ import { Route as AccountRouteImport } from './routes/account'
 import { Route as SignedInRouteImport } from './routes/signed-in'
 import { Route as StartRouteImport } from './routes/start'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
+import { Route as OgCharacterBossRouteImport } from './routes/og/$character/$boss'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -46,6 +47,11 @@ const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   path: '/api/auth/$',
   getParentRoute: () => rootRouteImport,
 } as any)
+const OgCharacterBossRoute = OgCharacterBossRouteImport.update({
+  id: '/og/$character/$boss',
+  path: '/og/$character/$boss',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -54,6 +60,7 @@ export interface FileRoutesByFullPath {
   '/signed-in': typeof SignedInRoute
   '/start': typeof StartRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/og/$character/$boss': typeof OgCharacterBossRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -62,6 +69,7 @@ export interface FileRoutesByTo {
   '/signed-in': typeof SignedInRoute
   '/start': typeof StartRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/og/$character/$boss': typeof OgCharacterBossRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -71,13 +79,27 @@ export interface FileRoutesById {
   '/signed-in': typeof SignedInRoute
   '/start': typeof StartRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/og/$character/$boss': typeof OgCharacterBossRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    '/' | '/$character' | '/account' | '/signed-in' | '/start' | '/api/auth/$'
+    | '/'
+    | '/$character'
+    | '/account'
+    | '/signed-in'
+    | '/start'
+    | '/api/auth/$'
+    | '/og/$character/$boss'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/$character' | '/account' | '/signed-in' | '/start' | '/api/auth/$'
+  to:
+    | '/'
+    | '/$character'
+    | '/account'
+    | '/signed-in'
+    | '/start'
+    | '/api/auth/$'
+    | '/og/$character/$boss'
   id:
     | '__root__'
     | '/'
@@ -86,6 +108,7 @@ export interface FileRouteTypes {
     | '/signed-in'
     | '/start'
     | '/api/auth/$'
+    | '/og/$character/$boss'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -95,6 +118,7 @@ export interface RootRouteChildren {
   SignedInRoute: typeof SignedInRoute
   StartRoute: typeof StartRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
+  OgCharacterBossRoute: typeof OgCharacterBossRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -141,6 +165,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAuthSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/og/$character/$boss': {
+      id: '/og/$character/$boss'
+      path: '/og/$character/$boss'
+      fullPath: '/og/$character/$boss'
+      preLoaderRoute: typeof OgCharacterBossRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -151,6 +182,7 @@ const rootRouteChildren: RootRouteChildren = {
   SignedInRoute: SignedInRoute,
   StartRoute: StartRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
+  OgCharacterBossRoute: OgCharacterBossRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
