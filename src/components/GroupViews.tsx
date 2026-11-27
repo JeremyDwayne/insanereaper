@@ -12,8 +12,9 @@ export type GroupData = NonNullable<Awaited<ReturnType<typeof getGroup>>>
 /** Each character of a group with its progress summed up, waiting edits included, as the group page shows it. */
 export function summarizeMembers(g: GroupData) {
   return g.characters.map((c) => {
-    const items = Object.fromEntries(c.items.map((id) => [id, 1]))
-    const tracked = applyWaiting({ items, tasks: c.tasks, parts: {}, kills: {} }, c.waiting)
+    const ids = (joined: string) => (joined ? joined.split(',') : [])
+    const items = Object.fromEntries(ids(c.items).map((id) => [id, 1]))
+    const tracked = applyWaiting({ items, tasks: ids(c.tasks), parts: {}, kills: {} }, c.waiting)
     return { ...c, summary: summarize(catalogue, { items: tracked.items, tasks: new Set(tracked.tasks) }) }
   })
 }

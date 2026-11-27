@@ -132,7 +132,7 @@ describe('addToGroup', () => {
 
     expect(await addToGroup(db, g.leader, g.id, name)).toBe('added')
 
-    expect(await roster(g.slug)).toMatchObject([{ name, status: 'unclaimed', items: [], tasks: [] }])
+    expect(await roster(g.slug)).toMatchObject([{ name, status: 'unclaimed', items: '', tasks: '' }])
     const [row] = await db.select().from(character).where(eq(character.nameKey, name))
     expect(row.userId).toBeNull()
   })
@@ -144,7 +144,7 @@ describe('addToGroup', () => {
     expect(await addToGroup(db, c.owner, g.id, c.name)).toBe('refused')
     expect(await addToGroup(db, g.leader, g.id, c.name)).toBe('added')
 
-    expect(await roster(g.slug)).toMatchObject([{ id: c.id, status: 'claimed', items: ['seismic-wand'] }])
+    expect(await roster(g.slug)).toMatchObject([{ id: c.id, status: 'claimed', items: 'seismic-wand' }])
   })
 
   it(`refuses a group's ${GROUP_LIMIT + 1}st character`, async () => {
@@ -189,7 +189,7 @@ describe('removeFromGroup', () => {
     expect(await db.$count(character, eq(character.id, c.id))).toBe(1)
     await addToGroup(db, g.leader, g.id, c.name)
 
-    expect(await roster(g.slug)).toMatchObject([{ id: c.id, items: ['seismic-wand'] }])
+    expect(await roster(g.slug)).toMatchObject([{ id: c.id, items: 'seismic-wand' }])
   })
 })
 

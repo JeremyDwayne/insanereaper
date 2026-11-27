@@ -191,8 +191,9 @@ export async function deleteGroup(db: Db, userId: string | undefined, groupId: s
 export type MemberStatus = 'leader' | 'claimed' | 'unclaimed'
 
 /**
- * A group's page by slug: its characters with their obtained drop ids, done achievement ids and the group's waiting
- * edits, its leaders by a character name (null for an account with none), and whether the viewer leads it.
+ * A group's page by slug: its characters with their obtained drop ids and done achievement ids, each comma-joined,
+ * and the group's waiting edits, its leaders by a character name (null for an account with none), and whether the
+ * viewer leads it.
  */
 export async function loadGroup(db: Db, slug: string, viewerId: string | undefined) {
   const [g] = await db
@@ -206,9 +207,12 @@ export async function loadGroup(db: Db, slug: string, viewerId: string | undefin
         id: character.id,
         name: character.name,
         userId: character.userId,
-        // One JSON array per character keeps the response small for a 100-character group.
-        items: sql<string>`(select json_group_array(item_id) from item_progress where character_id = "character"."id" and "count" > 0)`,
-        tasks: sql<string>`(select json_group_array(task_id) from task_progress where character_id = "character"."id")`,
+        items: sql<
+          string | null
+        >`(select group_concat(item_id) from item_progress where character_id = "character"."id" and "count" > 0)`,
+        tasks: sql<
+          string | null
+        >`(select group_concat(task_id) from task_progress where character_id = "character"."id")`,
       })
       .from(groupCharacter)
       .innerJoin(character, eq(character.id, groupCharacter.characterId))
@@ -245,8 +249,9 @@ export async function loadGroup(db: Db, slug: string, viewerId: string | undefin
       status: (m.userId === null ? 'unclaimed' : leaderIds.has(m.userId) ? 'leader' : 'claimed') as MemberStatus,
       /** Owned by the viewer, who may take it out of the group. */
       mine: !!viewerId && m.userId === viewerId,
-      items: JSON.parse(m.items) as string[],
-      tasks: JSON.parse(m.tasks) as string[],
+      // Comma-joined ids, split in the browser: a Worker serializes 200 strings far faster than 200 arrays of ids.
+      items: m.items ?? '',
+      tasks: m.tasks ?? '',
       waiting: waiting
         .filter((w) => w.characterId === m.id)
         .map((w): Waiting => ({ target: w.target, edit: w.edit, group: g.name })),
