@@ -13,6 +13,7 @@ const catalogue: Catalogue = {
     {
       id: '3745',
       name: 'Nex Master Speed Killer',
+      page: 'Nex Master Speed Killer',
       description: 'Defeat Nex solo in less than 01:21.',
       subcategory: 'Nex',
       bossId: 'nex',

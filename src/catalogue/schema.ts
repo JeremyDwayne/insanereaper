@@ -47,6 +47,8 @@ const Boss = type({
 const Task = type({
   id: 'string',
   name: 'string',
+  /** Wiki page the task list links its name to, empty when the wiki has none. */
+  page: 'string',
   description: 'string',
   subcategory: 'string',
   bossId: 'string',
