@@ -18,7 +18,8 @@ export const saveEdit = createServerFn({ method: 'POST' })
 
 /** Confirms or denies the owner's waiting edits, the listed targets or all of them (see resolveWaiting). */
 export const resolveEdits = createServerFn({ method: 'POST' })
-  .validator(type({ characterId: 'string', confirm: 'boolean', 'targets?': 'string[]' }))
+  // Confirm all and Deny all send targets as undefined, which an optional key alone refuses.
+  .validator(type({ characterId: 'string', confirm: 'boolean', 'targets?': 'string[] | undefined' }))
   .handler(async ({ data }) => {
     const user = await currentUser()
     const ok = await resolveWaiting(db, user?.id, data.characterId, data.confirm, data.targets)
