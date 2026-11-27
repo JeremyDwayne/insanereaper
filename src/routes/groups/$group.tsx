@@ -40,13 +40,18 @@ export const Route = createFileRoute('/groups/$group')({
   },
   head: ({ loaderData }) => ({ meta: [{ title: loaderData ? `${loaderData.name}, Insane Reaper` : 'Insane Reaper' }] }),
   component: GroupPage,
-  notFoundComponent: () => (
+  notFoundComponent: NoGroup,
+})
+
+/** Shown for a name no group has, or a group deleted while its page was cached. */
+function NoGroup() {
+  return (
     <main className="mx-auto max-w-3xl p-8">
       <h1 className="font-extrabold text-2xl">No group has that name</h1>
       <Link to="/account">Create one</Link>
     </main>
-  ),
-})
+  )
+}
 
 const select = 'rounded border border-line2 bg-surface px-2.5 py-2'
 const toggle = (on: boolean) =>
@@ -61,7 +66,7 @@ function GroupPage() {
   const members = useMemo(() => (data ? summarizeMembers(data) : []), [data])
   const [message, setMessage] = useState('')
 
-  if (!data) return null
+  if (!data) return <NoGroup />
   const setSearch = (next: Partial<typeof GroupSearch.infer>) =>
     navigate({ search: (s) => ({ ...s, ...next }), resetScroll: false, replace: true })
 
@@ -132,7 +137,7 @@ function GroupPage() {
             <span>
               {leaders.length === 1 ? 'Leader' : 'Leaders'} <strong className="text-text">{list(leaders)}</strong>
             </span>
-            {data.leads && <LeaderActions groupId={groupId} name={data.name} run={run} />}
+            {data.leads && <LeaderActions groupId={groupId} name={data.name} slug={data.slug} run={run} />}
           </div>
         </section>
 
@@ -290,13 +295,16 @@ function AddCharacter({ add }: { add: (name: string) => Promise<void> }) {
 function LeaderActions({
   groupId,
   name,
+  slug,
   run,
 }: {
   groupId: string
   name: string
+  slug: string
   run: (change: () => Promise<string | undefined>) => Promise<void>
 }) {
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const [deleting, setDeleting] = useState(false)
   const button = 'min-h-9 cursor-pointer rounded border border-line2 bg-transparent px-3 font-semibold text-text'
   return (
@@ -308,7 +316,11 @@ function LeaderActions({
             type="button"
             className={button}
             onClick={async () => {
-              if (await removeGroup({ data: { groupId } })) navigate({ to: '/account' })
+              if (!(await removeGroup({ data: { groupId } }))) return
+              await navigate({ to: '/account' })
+              // Going back must not show the deleted group from the cache, nor profiles still linking to it.
+              queryClient.setQueryData(groupQuery(slug).queryKey, null)
+              queryClient.invalidateQueries({ queryKey: ['character'] })
             }}
           >
             Delete group
