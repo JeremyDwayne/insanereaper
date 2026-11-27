@@ -53,12 +53,13 @@ export function linkPreview(
           `${tasks}${b.missing.length} of ${b.total} drops missing: `,
           b.missing.map((i) => i.name),
         )
+  return { title: `${character.name} at ${b.boss.name}`, description, image: imagePath(character.slug, b) }
+}
+
+/** A boss image's site path. Its version changes when an achievement or drop is ticked, so each path is cached for good. */
+export function imagePath(slug: string, b: BossEmbed): string {
   const version = hash([...b.tiers.flatMap((t) => t.tasks.map((task) => task.id)), '|', ...b.missing.map((i) => i.id)])
-  return {
-    title: `${character.name} at ${b.boss.name}`,
-    description,
-    image: `/og/${character.slug}/${b.boss.id}?v=${version}`,
-  }
+  return `/og/${slug}/${b.boss.id}?v=${version}`
 }
 
 /** `lead` and the names as a sentence, dropping names from the end into "and N more" until it fits. */
