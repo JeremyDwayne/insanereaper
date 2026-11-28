@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { bossesById, catalogue } from '#/catalogue/index.ts'
 import type { Tier } from '#/catalogue/schema.ts'
 import type { Edit } from '#/progress/edit.ts'
@@ -29,7 +29,9 @@ type Props = {
 /** Every achievement by Combat Mastery tier, one tier at a time in the game's order, to check ticks against the game. */
 export function TierView({ progress, edit, tier, filter, setSearch }: Props) {
   const lists = useMemo(() => tierLists(catalogue.tasks, progress), [progress])
-  const open = lists.find((l) => l.tier === tier) ?? lists.find((l) => l.done < l.total) ?? lists.at(-1)
+  // Picked once, so ticking the last achievement in it doesn't switch tiers.
+  const [firstLeft] = useState(() => (lists.find((l) => l.done < l.total) ?? lists.at(-1))?.tier)
+  const open = lists.find((l) => l.tier === (tier ?? firstLeft))
   if (!open) return null
   const shows = (done: boolean) => !filter || (filter === 'done') === done
   const tasks = open.tasks.filter((t) => shows(progress.tasks.has(t.id)))
