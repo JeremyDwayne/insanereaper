@@ -19,22 +19,23 @@ import { characterQuery, holdsEdits, useEdit } from '#/progress/queries.ts'
 import { type BossSummary, summarize } from '#/progress/summary.ts'
 import { counted } from '#/text.ts'
 
-const ORDERS = ['log', 'closest', 'points', 'tier'] as const
-const isOrder = (v: string): v is (typeof ORDERS)[number] => ORDERS.some((o) => o === v)
+/** A search param that is treated as absent when a link carries an unknown value, such as an old or mistyped one. */
+const oneOf = <const T extends string>(values: readonly T[]) =>
+  type('string').pipe((v) => values.find((value) => value === v))
 
 const ProfileSearch = type({
   'boss?': 'string',
   /** Also list logs with nothing left. */
   'all?': 'boolean',
-  'show?': "'drops' | 'tasks'",
+  'show?': oneOf(['drops', 'tasks']),
   /** Achievements as tiles in the open boss panel. */
   'tiles?': 'boolean',
-  /** Row order; the game's combat achievement list when absent or unknown, such as an old link's value. */
-  'sort?': type('string').pipe((v) => (isOrder(v) ? v : undefined)),
+  /** Row order; the game's combat achievement list when absent. */
+  'sort?': oneOf(['log', 'closest', 'points', 'tier']),
   /** The open tab in tier order. */
-  'tier?': type.enumerated(...TIERS),
+  'tier?': oneOf(TIERS),
   /** Tier order's done or not done filter. */
-  'filter?': "'done' | 'left'",
+  'filter?': oneOf(['done', 'left']),
 })
 
 /** Chat apps need absolute image URLs. */
