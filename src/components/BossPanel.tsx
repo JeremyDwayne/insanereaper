@@ -370,14 +370,26 @@ function Parts({ parts, ticked, tick }: PartsProps) {
   )
 }
 
-/** An achievement as a tile, outlined like a drop tile: dashed while not done, solid gold once done. Hover shows the description. */
-function TaskTile({ task, done, edit }: { task: Task; done: boolean; edit?: (edit: Edit) => void }) {
-  const box = `flex min-h-14 items-center gap-2.5 rounded bg-surface px-2.5 py-1.5 ${done ? 'border-2 border-gold-text' : 'border border-line2 border-dashed'}`
+/** A tile's box, outlined like a drop tile: dashed while not done, solid gold once done. */
+export const tileClass = (done: boolean) =>
+  `flex min-h-14 items-center gap-2.5 rounded bg-surface px-2.5 py-1.5 ${done ? 'border-2 border-gold-text' : 'border border-line2 border-dashed'}`
+
+type TaskTileProps = {
+  task: Task
+  done: boolean
+  edit?: (edit: Edit) => void
+  /** Shown under the name in place of the points. */
+  label?: string
+}
+
+/** An achievement as a tile (see tileClass). Hover shows the description. */
+export function TaskTile({ task, done, edit, label }: TaskTileProps) {
+  const box = tileClass(done)
   const text = (
     <span className="min-w-0">
       <strong className="block text-[13px] leading-tight">{task.name}</strong>
       <span className="flex gap-2 text-muted text-xs">
-        {task.points} pts
+        {label ?? `${task.points} pts`}
         <TaskWiki task={task} />
       </span>
     </span>
@@ -400,8 +412,8 @@ function TaskTile({ task, done, edit }: { task: Task; done: boolean; edit?: (edi
   )
 }
 
-/** One half of the List and Tiles switch. The pressed half is filled gold. */
-function LayoutButton(props: { pressed: boolean; onClick: () => void; className: string; children: string }) {
+/** One segment of a switch, such as List and Tiles. The pressed segment is filled gold. */
+export function LayoutButton(props: { pressed: boolean; onClick: () => void; className: string; children: string }) {
   return (
     <button
       type="button"

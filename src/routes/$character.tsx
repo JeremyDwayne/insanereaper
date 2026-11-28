@@ -4,11 +4,13 @@ import { type } from 'arktype'
 import { Fragment, useEffect, useMemo } from 'react'
 import { imageUrl } from '#/catalogue/images.ts'
 import { catalogue } from '#/catalogue/index.ts'
+import { TIERS } from '#/catalogue/schema.ts'
 import { BossPanel } from '#/components/BossPanel.tsx'
 import { CopyLink, Header, HeaderButton } from '#/components/Header.tsx'
 import { DownloadIcon } from '#/components/icons.tsx'
 import { Meter } from '#/components/Meter.tsx'
 import { Search } from '#/components/Search.tsx'
+import { TierView } from '#/components/TierView.tsx'
 import { CharacterNotice, WaitingReview } from '#/components/Waiting.tsx'
 import { downloadXlsx } from '#/export/xlsx.ts'
 import { applyWaiting } from '#/progress/edit.ts'
@@ -17,18 +19,23 @@ import { characterQuery, holdsEdits, useEdit } from '#/progress/queries.ts'
 import { type BossSummary, summarize } from '#/progress/summary.ts'
 import { counted } from '#/text.ts'
 
-const ORDERS = ['log', 'closest', 'points'] as const
-const isOrder = (v: string): v is (typeof ORDERS)[number] => ORDERS.some((o) => o === v)
+/** A search param that is treated as absent when a link carries an unknown value, such as an old or mistyped one. */
+const oneOf = <const T extends string>(values: readonly T[]) =>
+  type('string').pipe((v) => values.find((value) => value === v))
 
 const ProfileSearch = type({
   'boss?': 'string',
   /** Also list logs with nothing left. */
   'all?': 'boolean',
-  'show?': "'drops' | 'tasks'",
+  'show?': oneOf(['drops', 'tasks']),
   /** Achievements as tiles in the open boss panel. */
   'tiles?': 'boolean',
-  /** Row order; the game's combat achievement list when absent or unknown, such as an old link's value. */
-  'sort?': type('string').pipe((v) => (isOrder(v) ? v : undefined)),
+  /** Row order; the game's combat achievement list when absent. */
+  'sort?': oneOf(['log', 'closest', 'points', 'tier']),
+  /** The open tab in tier order. */
+  'tier?': oneOf(TIERS),
+  /** Tier order's done or not done filter. */
+  'filter?': oneOf(['done', 'left']),
 })
 
 /** Chat apps need absolute image URLs. */
@@ -86,13 +93,14 @@ const SORT_OPTIONS = [
   { value: 'log', label: 'Drop log' },
   { value: 'closest', label: 'Closest to done' },
   { value: 'points', label: 'Most points left' },
+  { value: 'tier', label: 'Tier' },
 ] as const
 
 const COLUMNS = 'grid grid-cols-[44px_minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_84px] items-center gap-3.5'
 
 const logOrder = new Map(catalogue.logs.map((log, i) => [log.id, i]))
 
-/** Row orders other than the default, which keeps the catalogue's game achievement order. */
+/** Row orders other than the default, which keeps the catalogue's game achievement order, and tier, which has no rows. */
 const sorts = {
   log: (a: BossSummary, b: BossSummary) => (logOrder.get(a.log.id) ?? 0) - (logOrder.get(b.log.id) ?? 0),
   closest: (a: BossSummary, b: BossSummary) => b.got / b.total - a.got / a.total || a.tasksLeft - b.tasksLeft,
@@ -101,7 +109,7 @@ const sorts = {
 
 function Profile() {
   const { character } = Route.useParams()
-  const { boss, all = false, show, sort, tiles = false } = Route.useSearch()
+  const { boss, all = false, show, sort, tiles = false, tier, filter } = Route.useSearch()
   const navigate = Route.useNavigate()
   const { data } = useSuspenseQuery(characterQuery(character))
   const edit = useEdit(character)
@@ -117,7 +125,7 @@ function Profile() {
   if (!data || !tracked) return null
   const left = (s: BossSummary) => (show === 'drops' ? !s.complete : show === 'tasks' ? s.tasksLeft > 0 : !s.done)
   const shown = summary.bosses.filter((s) => all || left(s) || s.boss.id === boss)
-  const rows = sort ? shown.sort(sorts[sort]) : shown
+  const rows = sort && sort !== 'tier' ? shown.sort(sorts[sort]) : shown
   const dropsLeft = summary.drops.total - summary.drops.got
   const setSearch = (next: Partial<typeof ProfileSearch.infer>) =>
     navigate({ search: (s) => ({ ...s, ...next }), resetScroll: false, replace: true })
@@ -178,30 +186,36 @@ function Profile() {
         <WaitingReview data={data} />
 
         <div className="flex flex-wrap items-center gap-4 border-line border-y py-1.5">
+          {sort !== 'tier' && (
+            <>
+              <label className="flex min-h-11 items-center gap-2 font-semibold">
+                <input
+                  type="checkbox"
+                  checked={!all}
+                  className="size-[18px] accent-gold"
+                  onChange={(e) => setSearch({ all: e.target.checked ? undefined : true })}
+                />
+                Missing only
+              </label>
+              <label className="flex items-center gap-2 font-semibold">
+                Show
+                <select
+                  value={show ?? ''}
+                  className="rounded border border-line2 bg-surface px-2.5 py-2"
+                  onChange={(e) =>
+                    setSearch({ show: SHOW_OPTIONS.find((o) => (o.value ?? '') === e.target.value)?.value })
+                  }
+                >
+                  {SHOW_OPTIONS.map((o) => (
+                    <option key={o.label} value={o.value ?? ''}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          )}
           <label className="flex min-h-11 items-center gap-2 font-semibold">
-            <input
-              type="checkbox"
-              checked={!all}
-              className="size-[18px] accent-gold"
-              onChange={(e) => setSearch({ all: e.target.checked ? undefined : true })}
-            />
-            Missing only
-          </label>
-          <label className="flex items-center gap-2 font-semibold">
-            Show
-            <select
-              value={show ?? ''}
-              className="rounded border border-line2 bg-surface px-2.5 py-2"
-              onChange={(e) => setSearch({ show: SHOW_OPTIONS.find((o) => (o.value ?? '') === e.target.value)?.value })}
-            >
-              {SHOW_OPTIONS.map((o) => (
-                <option key={o.label} value={o.value ?? ''}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="flex items-center gap-2 font-semibold">
             Order
             <select
               value={sort ?? ''}
@@ -217,62 +231,72 @@ function Profile() {
           </label>
         </div>
 
-        <section className="flex flex-col">
-          <div className={`${COLUMNS} px-3 pb-2 text-muted text-xs`}>
-            <span />
-            <span>Boss</span>
-            <span>Drops</span>
-            <span>Achievements</span>
-            <span className="text-right">Points left</span>
-          </div>
-          {rows.map((s) => {
-            const open = s.boss.id === boss
-            const line = (
-              <Link
-                key={s.boss.id}
-                from={Route.fullPath}
-                to="/$character"
-                params={{ character: data.slug }}
-                search={(prev) => ({ ...prev, boss: open ? undefined : s.boss.id })}
-                resetScroll={false}
-                replace
-                aria-expanded={open}
-                className={`${COLUMNS} px-3 py-1.5 text-text no-underline ${open ? 'py-2' : 'border-line border-t'}`}
-              >
-                <img src={imageUrl(s.boss)} alt="" className="size-11 object-contain" loading="lazy" />
-                <span className={open ? 'font-extrabold text-base' : 'font-semibold'}>
-                  {s.boss.name}
-                  {s.boss.id !== s.log.id && (
-                    <span className="block font-normal text-muted text-xs">{s.log.name} drops</span>
-                  )}
-                </span>
-                <Meter got={s.got} total={s.total} kind="drops" />
-                <Meter got={s.tasks.length - s.tasksLeft} total={s.tasks.length} kind="tasks" />
-                <span className={`text-right tabular-nums ${open ? 'font-bold' : ''}`}>{s.pointsLeft}</span>
-              </Link>
-            )
-            return open ? (
-              <div key={s.boss.id} id={`boss-${s.boss.id}`} className="my-1.5 rounded border-2 border-gold-text">
-                {line}
-                <BossPanel
-                  s={s}
-                  progress={progress}
-                  kills={tracked.kills}
-                  parts={tracked.parts}
-                  edit={data.role ? edit.mutate : undefined}
-                  show={show ?? 'all'}
-                  tiles={tiles}
-                  setTiles={(on) => setSearch({ tiles: on || undefined })}
-                />
-              </div>
-            ) : (
-              <Fragment key={s.boss.id}>{line}</Fragment>
-            )
-          })}
-          {rows.length === 0 && (
-            <p className="text-muted">Nothing left here. Turn off Missing only to see every log.</p>
-          )}
-        </section>
+        {sort === 'tier' ? (
+          <TierView
+            progress={progress}
+            edit={data.role ? edit.mutate : undefined}
+            tier={tier}
+            filter={filter}
+            setSearch={setSearch}
+          />
+        ) : (
+          <section className="flex flex-col">
+            <div className={`${COLUMNS} px-3 pb-2 text-muted text-xs`}>
+              <span />
+              <span>Boss</span>
+              <span>Drops</span>
+              <span>Achievements</span>
+              <span className="text-right">Points left</span>
+            </div>
+            {rows.map((s) => {
+              const open = s.boss.id === boss
+              const line = (
+                <Link
+                  key={s.boss.id}
+                  from={Route.fullPath}
+                  to="/$character"
+                  params={{ character: data.slug }}
+                  search={(prev) => ({ ...prev, boss: open ? undefined : s.boss.id })}
+                  resetScroll={false}
+                  replace
+                  aria-expanded={open}
+                  className={`${COLUMNS} px-3 py-1.5 text-text no-underline ${open ? 'py-2' : 'border-line border-t'}`}
+                >
+                  <img src={imageUrl(s.boss)} alt="" className="size-11 object-contain" loading="lazy" />
+                  <span className={open ? 'font-extrabold text-base' : 'font-semibold'}>
+                    {s.boss.name}
+                    {s.boss.id !== s.log.id && (
+                      <span className="block font-normal text-muted text-xs">{s.log.name} drops</span>
+                    )}
+                  </span>
+                  <Meter got={s.got} total={s.total} kind="drops" />
+                  <Meter got={s.tasks.length - s.tasksLeft} total={s.tasks.length} kind="tasks" />
+                  <span className={`text-right tabular-nums ${open ? 'font-bold' : ''}`}>{s.pointsLeft}</span>
+                </Link>
+              )
+              return open ? (
+                <div key={s.boss.id} id={`boss-${s.boss.id}`} className="my-1.5 rounded border-2 border-gold-text">
+                  {line}
+                  <BossPanel
+                    s={s}
+                    progress={progress}
+                    kills={tracked.kills}
+                    parts={tracked.parts}
+                    edit={data.role ? edit.mutate : undefined}
+                    show={show ?? 'all'}
+                    tiles={tiles}
+                    setTiles={(on) => setSearch({ tiles: on || undefined })}
+                  />
+                </div>
+              ) : (
+                <Fragment key={s.boss.id}>{line}</Fragment>
+              )
+            })}
+            {rows.length === 0 && (
+              <p className="text-muted">Nothing left here. Turn off Missing only to see every log.</p>
+            )}
+          </section>
+        )}
         <footer className="border-line border-t pt-3 text-muted text-xs">
           Boss, drop and achievement data from the{' '}
           <a href="https://runescape.wiki" target="_blank" rel="noreferrer">

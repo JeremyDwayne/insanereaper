@@ -47,7 +47,8 @@ export function Search({ slug, bosses, progress }: { slug: string; bosses: BossS
       from: '/$character',
       to: '/$character',
       params: { character: slug },
-      search: (s) => ({ ...s, boss }),
+      // Tier order has no boss rows, so a found boss opens in the default order.
+      search: (s) => ({ ...s, boss, sort: s.sort === 'tier' ? undefined : s.sort }),
       resetScroll: false,
     })
   }
